@@ -248,3 +248,8 @@ export type Trampolined<As extends any[], B> = Trampolined_.Trampolined<As, B>;
  * // TODO: Ackerman function is a function that recurses once or twice
  */
 export const trampoline = Trampolined_.trampoline_;
+
+// TODO: an intermediate results caching `trampoline`
+// Cache is a WeakMap<Map<string>>, first caching by a function,
+// then by a `resolver(fn, args)` where `resolver` is a user-provided
+// function converting an arguments list into a `string` cache key

@@ -163,6 +163,28 @@ describe("trampoline", () => {
     }).not.toThrow();
   });
 
+  it("", () => {
+    // TODO: Fibbonaci
+  });
+
+  it("", () => {
+    // TODO: mutual recursion
+  });
+
+  it("transforms trampolined Ackerman function correctly", () => {
+    // TODO: transform `ack`
+  });
+});
+
+describe("trampolineCached", () => {
+  it("", () => {
+    // TODO: Fibbonaci
+  });
+
+  it("", () => {
+    // TODO: mutual recursion
+  });
+
   it("transforms trampolined Ackerman function correctly", () => {
     // TODO: transform `ack`
   });
