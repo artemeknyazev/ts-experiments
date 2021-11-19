@@ -159,9 +159,92 @@ export type TrampolinedOR<As extends any[], B> = TrampolinedOR_.Func<As, B>;
  * fact(1) === 1;
  * fact(2) === 2;
  * fact(3) === 6;
- *
- * // TODO: add an example for mutual recursion
  */
 export const trampolineOR = <As extends any[], B>(
   f: TrampolinedOR<As, B>
 ): ((...args: As) => B) => TrampolinedOR_.trampoline_(f);
+
+/**
+ * Universal trampoline for once- and multiply-recursive functions
+ */
+namespace Trampolined_ {
+  const CallSymbol = Symbol("Call");
+
+  export type Call<As extends any[], B> = {
+    readonly tag: typeof CallSymbol;
+    readonly fn: (...args: As) => B;
+    readonly args: As;
+  };
+
+  export const call = <As extends any[], B>(
+    f: (...args: As) => B,
+    ...args: As
+  ): Call<As, B> => ({ tag: CallSymbol, fn: f, args });
+
+  const isCall = <As extends any[], B>(x: Call<As, B>): x is Call<As, B> =>
+    x.tag === CallSymbol;
+
+  export type Trampolined<As extends any[], B> = (
+    next: (x: B) => B | Call<any[], any>,
+    ...args: As
+  ) => Call<any[], any>;
+
+  export const trampoline_ =
+    <As extends any[], B>(f: Trampolined<As, B>) =>
+    (...args: As): B => {
+      let x = f((x) => x, ...args);
+      while (true) {
+        if (x && isCall(x)) {
+          x = x.fn(...x.args);
+        } else {
+          return x;
+        }
+      }
+    };
+}
+
+/**
+ * A thunk type for the `trampoline` function's function argument
+ */
+export type Call<As extends any[], B> = Trampolined_.Call<As, B>;
+
+/**
+ * Thunkifys a call to some function with a provided list of arguments
+ */
+export const call = Trampolined_.call;
+
+/**
+ * A trampolined function type with computations delayed using a `call` function
+ */
+export type Trampolined<As extends any[], B> = Trampolined_.Trampolined<As, B>;
+
+/**
+ * Transforms a trampolined function into a stack-safe function
+ *
+ * **Assumptions**
+ * - `f` converges
+ * - for the base case `f` or some function it calls returns `call(next, <value>)`
+ * - for the intermediate case `f` (or some function it calls) returns
+ *   `call(g, transform, ...<arguments of g>)`, where `g` is `f`
+ *   or any other function, and `transform: (x: B) => B` is a result transformer
+ *   function that binds arguments from this intermediate step, receives a result
+ *   from the step below, and returns it's result to the step above
+ *
+ * @example
+ * // Factorial is a function that recurses once in a call
+ * const fact_: Trampolined<[number], number> = (next, n) =>
+ *   n > 1 ? call(ftr_, (x) => call(next, x * n), n - 1) : call(next, 1);
+ *
+ * const fact = trampoline(fact_);
+ *
+ * fact(1) === 1;
+ * fact(2) === 2;
+ * fact(3) === 6;
+ *
+ * @example
+ * // TODO: Fibonacci is a function that recurses twice in a call
+ *
+ * @example
+ * // TODO: Ackerman function is a function that recurses once or twice
+ */
+export const trampoline = Trampolined_.trampoline_;
