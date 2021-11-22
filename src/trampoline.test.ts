@@ -1,4 +1,5 @@
 import * as E from "fp-ts/lib/Either";
+import { identity } from "fp-ts/lib/function";
 import {
   trampolineORSR,
   TrampolinedORSR,
@@ -23,9 +24,17 @@ const adderRef_ = (n: number, acc: number): number =>
   n > 1 ? adderRef_(n - 1, acc + 1) : acc;
 const adderRef = (n: number) => adderRef_(n, 0);
 
+// A naive Fibonacci
+const fibRef = (n: number): number =>
+  n === 0 || n === 1 ? 1 : fibRef(n - 1) + fibRef(n - 2);
+
 // An Ackerman function
-const ack = (n: number, m: number): number =>
-  m === 0 ? n + 1 : n === 0 ? ack(m - 1, 1) : ack(m - 1, ack(m, n - 1));
+const ackRef = (m: number, n: number): number =>
+  m === 0
+    ? n + 1
+    : n === 0
+    ? ackRef(m - 1, 1)
+    : ackRef(m - 1, ackRef(m, n - 1));
 
 describe("trampolineORSR", () => {
   it("transforms trampolined standard form factorial correctly", () => {
@@ -163,16 +172,79 @@ describe("trampoline", () => {
     }).not.toThrow();
   });
 
-  it("", () => {
-    // TODO: Fibbonaci
+  it("transforms naive Fibonacci correctly", () => {
+    const fib_: Trampolined<[number], number> = (next, n) =>
+      n === 0 || n === 1
+        ? call(next, 1)
+        : call(fib_, (x) => call(fib_, (y) => call(next, x + y), n - 1), n - 2);
+    const fib = trampoline(fib_);
+
+    for (let i = 0; i < 30; i++) {
+      expect(fib(i)).toBe(fibRef(i));
+    }
   });
 
-  it("", () => {
-    // TODO: mutual recursion
+  it("transforms mutually recursive even/odd functions correctly", () => {
+    const even_: Trampolined<[number], boolean> = (next, n) =>
+      n === 0 ? call(next, true) : call(odd_, identity, n - 1);
+    const odd_: Trampolined<[number], boolean> = (next, n) =>
+      n === 0 ? call(next, false) : call(even_, identity, n - 1);
+    const even = trampoline(even_);
+    const odd = trampoline(odd_);
+
+    for (let i = 0; i < 20; i++) {
+      const isEven = i % 2 === 0;
+      expect(even(i)).toBe(isEven);
+      expect(odd(i)).toBe(!isEven);
+    }
+
+    const n = 2 ** 16 + 1;
+    expect(() => {
+      expect(even(n)).toBe(false);
+    }).not.toThrow();
+    expect(() => {
+      expect(odd(n)).toBe(true);
+    }).not.toThrow();
   });
 
-  it("transforms trampolined Ackerman function correctly", () => {
-    // TODO: transform `ack`
+  it.skip("transforms trampolined Ackerman function correctly", () => {
+    // TODO: fix this!
+    const ack_: Trampolined<[number, number], number> = (next, m, n) =>
+      m === 0
+        ? (console.log("1", m, n), call(next, n + 1))
+        : n === 0
+        ? (console.log("2", m, n),
+          call(
+            ack_,
+            (x) => {
+              console.log("m > 0, n = 0", x);
+              return x;
+            },
+            m - 1,
+            1
+          ))
+        : (console.log("3", m, n),
+          call(
+            ack_,
+            (x) => {
+              console.log("m > 0, n > 0 (1)", x);
+              return x + 1;
+              return call(ack_, identity, m - 1, x);
+            },
+            m,
+            n - 1
+          ));
+    const ack = trampoline(ack_);
+    console.log(ack(2, 0));
+
+    // console.log(1, ack_(identity, 0, 2));
+
+    // expect(ack(0, 0)).toBe(ackRef(0, 0));
+    // expect(ack(1, 0)).toBe(ackRef(1, 0));
+    // expect(ack(2, 0)).toBe(ackRef(2, 0));
+    // expect(ack(2, 0)).toBe(ackRef(2, 0));
+    // expect(ack(0, 2)).toBe(ackRef(0, 2));
+    // expect(ack(1, 0)).toBe(ackRef(1, 0));
   });
 });
 

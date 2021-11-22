@@ -195,6 +195,7 @@ namespace Trampolined_ {
       let x = f((x) => x, ...args);
       while (true) {
         if (x && isCall(x)) {
+          // console.log('call', x.fn.name, x.args);
           x = x.fn(...x.args);
         } else {
           return x;
