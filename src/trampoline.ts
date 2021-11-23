@@ -4,6 +4,8 @@ import { pipe } from "fp-ts/lib/function";
 
 import Either = E.Either;
 
+type AnyFunction = (...args: any[]) => any;
+
 /**
  * Trampolined once-recursive (only one recursive call inside)
  * self-recursive (calls only itself) function type
@@ -19,7 +21,7 @@ namespace TrampolinedORSR_ {
    * A final case is a value to be reduced through all result computing
    * functions for each step
    */
-  type FinalCase<B> = B;
+  type FinalCase<F extends AnyFunction> = ReturnType<F>;
 
   /**
    * Non-final case consists of
@@ -28,9 +30,9 @@ namespace TrampolinedORSR_ {
    *   if not provided, will be assumed as an `x => x` identity function
    * - a required list of arguments for the next trampolined function call
    */
-  type NonFinalCase<NextCaseArgs extends any[], B> = [
-    ResultCombinator<B> | undefined,
-    NextCaseArgs
+  type NonFinalCase<F extends AnyFunction> = [
+    ResultCombinator<ReturnType<F>> | undefined,
+    Parameters<F>
   ];
 
   /**
@@ -38,18 +40,20 @@ namespace TrampolinedORSR_ {
    * - `left` is a non-final case (e.g. `fact(n) = n * fact(n-1)`, where `n > 1`)
    * - `right` is a final case (e.g. `fact(1) = 1`)
    */
-  type FuncRes<As extends any[], B> = Either<NonFinalCase<As, B>, FinalCase<B>>;
+  type FuncRes<F extends AnyFunction> = Either<NonFinalCase<F>, FinalCase<F>>;
 
   /**
    * A trampolined once-recursive function type
    */
-  export type Func<As extends any[], B> = (...args: As) => FuncRes<As, B>;
+  export type Func<F extends AnyFunction> = (
+    ...args: Parameters<F>
+  ) => FuncRes<F>;
 
   export const trampoline_ =
-    <As extends any[], B>(f: Func<As, B>) =>
-    (...args: As): B => {
-      const stack: (ResultCombinator<B> | undefined)[] = [];
-      let r: B;
+    <F extends AnyFunction>(f: Func<F>) =>
+    (...args: Parameters<F>): ReturnType<F> => {
+      const stack: (ResultCombinator<ReturnType<F>> | undefined)[] = [];
+      let r: ReturnType<F>;
       while (true) {
         const next = f(...args);
         if (E.isLeft(next)) {
@@ -67,7 +71,7 @@ namespace TrampolinedORSR_ {
     };
 }
 
-export type TrampolinedORSR<As extends any[], B> = TrampolinedORSR_.Func<As, B>;
+export type TrampolinedORSR<F extends AnyFunction> = TrampolinedORSR_.Func<F>;
 
 /**
  * Transforms a trampolined once-recursive function into
@@ -83,17 +87,15 @@ export type TrampolinedORSR<As extends any[], B> = TrampolinedORSR_.Func<As, B>;
  *   - `Either.right` for the final/base case
  *
  * @example
- * const fact_: TrampolinedORSR<[number], number> =
+ * type Fact = (x: number) => number
+ * const fact_: TrampolinedORSR<Fact> =
  *   (n) => n > 1 ? E.left([x => n * x, [n - 1]]) : E.right(1);
- *
- * const fact = trampolineORSR(fact_);
- * fact(1) === 1;
- * fact(2) === 2;
- * fact(3) === 6;
+ * const fact: Fact = trampolineORSR(fact_);
  */
-export const trampolineORSR = <As extends any[], B>(
-  f: TrampolinedORSR<As, B>
-): ((...args: As) => B) => TrampolinedORSR_.trampoline_(f);
+export const trampolineORSR = <F extends AnyFunction>(
+  f: TrampolinedORSR<F>
+): ((...args: Parameters<F>) => ReturnType<F>) =>
+  TrampolinedORSR_.trampoline_(f);
 
 /**
  * Trampolined once-recursive function that uses thunks and optional
@@ -102,25 +104,27 @@ export const trampolineORSR = <As extends any[], B>(
 namespace TrampolinedOR_ {
   type ResultCombinator<B> = (x: B) => B;
 
-  type FinalCase<B> = B;
+  type FinalCase<F extends AnyFunction> = ReturnType<F>;
 
-  type NextCaseThunk<As extends any[], B> = () => FuncRes<As, B>;
+  type NextCaseThunk<F extends AnyFunction> = () => FuncRes<F>;
 
-  type NonFinalCase<As extends any[], B> = [
-    ResultCombinator<B> | undefined,
-    NextCaseThunk<As, B>
+  type NonFinalCase<F extends AnyFunction> = [
+    ResultCombinator<ReturnType<F>> | undefined,
+    NextCaseThunk<F>
   ];
 
-  type FuncRes<As extends any[], B> = Either<NonFinalCase<As, B>, FinalCase<B>>;
+  type FuncRes<F extends AnyFunction> = Either<NonFinalCase<F>, FinalCase<F>>;
 
-  export type Func<As extends any[], B> = (...args: As) => FuncRes<As, B>;
+  export type Func<F extends AnyFunction> = (
+    ...args: Parameters<F>
+  ) => FuncRes<F>;
 
   export const trampoline_ =
-    <As extends any[], B>(f: Func<As, B>) =>
-    (...args: As): B => {
-      const stack: (ResultCombinator<B> | undefined)[] = [];
-      let next: FuncRes<As, B> = f(...args);
-      let r: B;
+    <F extends AnyFunction>(f: Func<F>) =>
+    (...args: Parameters<F>): ReturnType<F> => {
+      const stack: (ResultCombinator<ReturnType<F>> | undefined)[] = [];
+      let next: FuncRes<F> = f(...args);
+      let r: ReturnType<F>;
       while (true) {
         if (E.isLeft(next)) {
           stack.push(next.left[0]);
@@ -137,7 +141,7 @@ namespace TrampolinedOR_ {
     };
 }
 
-export type TrampolinedOR<As extends any[], B> = TrampolinedOR_.Func<As, B>;
+export type TrampolinedOR<F extends AnyFunction> = TrampolinedOR_.Func<F>;
 
 /**
  * Transforms a trampolined once-recursive function into
@@ -152,17 +156,14 @@ export type TrampolinedOR<As extends any[], B> = TrampolinedOR_.Func<As, B>;
  *   - `Either.right` for the final/base case
  *
  * @example
- * const fact_: TrampolinedOR<[number], number> = (n) =>
+ * type Fact = (x: number) => number;
+ * const fact_: TrampolinedOR<Fact> = (n) =>
  *   n > 1 ? E.left([x => n * x, () => fact(n - 1)]) : E.right(n);
- *
- * const fact = trampolineOR(fact_);
- * fact(1) === 1;
- * fact(2) === 2;
- * fact(3) === 6;
+ * const fact: Fact = trampolineOR(fact_);
  */
-export const trampolineOR = <As extends any[], B>(
-  f: TrampolinedOR<As, B>
-): ((...args: As) => B) => TrampolinedOR_.trampoline_(f);
+export const trampolineOR = <F extends AnyFunction>(
+  f: TrampolinedOR<F>
+): ((...args: Parameters<F>) => ReturnType<F>) => TrampolinedOR_.trampoline_(f);
 
 /**
  * Universal trampoline for once- and multiply-recursive functions
@@ -170,32 +171,31 @@ export const trampolineOR = <As extends any[], B>(
 namespace Trampolined_ {
   const CallSymbol = Symbol("Call");
 
-  export type Call<As extends any[], B> = {
+  export type Call<F extends AnyFunction> = {
     readonly tag: typeof CallSymbol;
-    readonly fn: (...args: As) => B;
-    readonly args: As;
+    readonly fn: F;
+    readonly args: Parameters<F>;
   };
 
-  export const call = <As extends any[], B>(
-    f: (...args: As) => B,
-    ...args: As
-  ): Call<As, B> => ({ tag: CallSymbol, fn: f, args });
+  export const call = <F extends AnyFunction>(
+    f: F,
+    ...args: Parameters<F>
+  ): Call<F> => ({ tag: CallSymbol, fn: f, args });
 
-  const isCall = <As extends any[], B>(x: Call<As, B>): x is Call<As, B> =>
+  const isCall = <F extends AnyFunction>(x: Call<F>): x is Call<F> =>
     x.tag === CallSymbol;
 
-  export type Trampolined<As extends any[], B> = (
-    next: (x: B) => B | Call<any[], any>,
-    ...args: As
-  ) => Call<any[], any>;
+  export type Trampolined<F extends AnyFunction> = (
+    next: (x: ReturnType<F>) => ReturnType<F> | Call<AnyFunction>,
+    ...args: Parameters<F>
+  ) => Call<AnyFunction>;
 
   export const trampoline_ =
-    <As extends any[], B>(f: Trampolined<As, B>) =>
-    (...args: As): B => {
+    <F extends AnyFunction>(f: Trampolined<F>) =>
+    (...args: Parameters<F>): ReturnType<F> => {
       let x = f((x) => x, ...args);
       while (true) {
         if (x && isCall(x)) {
-          // console.log('call', x.fn.name, x.args);
           x = x.fn(...x.args);
         } else {
           return x;
@@ -205,11 +205,6 @@ namespace Trampolined_ {
 }
 
 /**
- * A thunk type for the `trampoline` function's function argument
- */
-export type Call<As extends any[], B> = Trampolined_.Call<As, B>;
-
-/**
  * Thunkifys a call to some function with a provided list of arguments
  */
 export const call = Trampolined_.call;
@@ -217,7 +212,7 @@ export const call = Trampolined_.call;
 /**
  * A trampolined function type with computations delayed using a `call` function
  */
-export type Trampolined<As extends any[], B> = Trampolined_.Trampolined<As, B>;
+export type Trampolined<F extends AnyFunction> = Trampolined_.Trampolined<F>;
 
 /**
  * Transforms a trampolined function into a stack-safe function
@@ -227,26 +222,35 @@ export type Trampolined<As extends any[], B> = Trampolined_.Trampolined<As, B>;
  * - for the base case `f` or some function it calls returns `call(next, <value>)`
  * - for the intermediate case `f` (or some function it calls) returns
  *   `call(g, transform, ...<arguments of g>)`, where `g` is `f`
- *   or any other function, and `transform: (x: B) => B` is a result transformer
- *   function that binds arguments from this intermediate step, receives a result
- *   from the step below, and returns it's result to the step above
+ *   or any other function, and `transform: (x: B) => B` is
+ *   - either a `next` function
+ *   - or a result transformer function that binds arguments from this
+ *     intermediate step, receives a result from the step below, and returns
+ *     it's result to the step above using the `call(next, <result>)`
  *
  * @example
- * // Factorial is a function that recurses once in a call
- * const fact_: Trampolined<[number], number> = (next, n) =>
+ * type Fact = (x: number) => number;
+ * const fact_: Trampolined<Fact> = (next, n) =>
  *   n > 1 ? call(ftr_, (x) => call(next, x * n), n - 1) : call(next, 1);
- *
- * const fact = trampoline(fact_);
- *
- * fact(1) === 1;
- * fact(2) === 2;
- * fact(3) === 6;
+ * const fact: Fact = trampoline(fact_);
  *
  * @example
- * // TODO: Fibonacci is a function that recurses twice in a call
+ * type Fib = (x: number) => number;
+ * const fib_: Trampolined<Fib> = (next, n) =>
+ *   n === 0 || n === 1
+ *   ? call(next, 1)
+ *   : call(fib_, (x) => call(fib_, (y) => call(next, x + y), n - 1), n - 2);
+ * const fib: Fib = trampoline(fib_);
  *
  * @example
- * // TODO: Ackerman function is a function that recurses once or twice
+ * type Ack = (m: number, n: number) => number;
+ * const ack_: Trampolined<Ack> = (next, m, n) =>
+ *   m === 0
+ *   ? call(next, n + 1)
+ *   : n === 0
+ *   ? call(ack_, next, m - 1, 1)
+ *   : call(ack_, (x) => call(ack_, next, m - 1, x), m, n - 1);
+ * const ack: Ack = trampoline(ack_);
  */
 export const trampoline = Trampolined_.trampoline_;
 
