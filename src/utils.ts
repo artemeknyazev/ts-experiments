@@ -1,4 +1,10 @@
 // -----------------------------------------------------------------------------
+// Common Types
+// -----------------------------------------------------------------------------
+
+export type AnyFunction = (...args: any[]) => any;
+
+// -----------------------------------------------------------------------------
 //  Reference implementations
 // -----------------------------------------------------------------------------
 
@@ -48,7 +54,7 @@ export type Ack = (m: number, n: number) => number;
 export type Predicate<A> = (x: A) => boolean;
 
 // -----------------------------------------------------------------------------
-//  Checkers
+//  Checkers for tests
 // -----------------------------------------------------------------------------
 
 export function checkFact(fact: Fact, factRef: Fact): void {
@@ -102,3 +108,22 @@ export function checkAck(ack: Ack, ackRef: Ack): void {
     }
   }
 }
+
+// -----------------------------------------------------------------------------
+//  Test helpers
+// -----------------------------------------------------------------------------
+
+export const sortFibCacheEntries = (a: [string, number], b: [string, number]) =>
+  Math.sign(Number(a[0]) - Number(b[0]));
+
+export const sortAckCacheEntries = (
+  a: [string, number],
+  b: [string, number]
+) => {
+  const as = a[0].split("_");
+  const bs = b[0].split("_");
+  return (
+    Math.sign(Number(as[0]) - Number(bs[0])) ||
+    Math.sign(Number(as[1]) - Number(bs[1]))
+  );
+};

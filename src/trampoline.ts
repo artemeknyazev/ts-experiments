@@ -1,10 +1,9 @@
 import * as E from "fp-ts/lib/Either";
 import * as A from "fp-ts/lib/Array";
 import { pipe } from "fp-ts/lib/function";
+import { AnyFunction } from "./utils";
 
 import Either = E.Either;
-
-type AnyFunction = (...args: any[]) => any;
 
 /**
  * Trampolined once-recursive (only one recursive call inside)
@@ -253,8 +252,3 @@ export type Trampolined<F extends AnyFunction> = Trampolined_.Trampolined<F>;
  * const ack: Ack = trampoline(ack_);
  */
 export const trampoline = Trampolined_.trampoline_;
-
-// TODO: an intermediate results caching `trampoline`
-// Cache is a WeakMap<Map<string>>, first caching by a function,
-// then by a `resolver(fn, args)` where `resolver` is a user-provided
-// function converting an arguments list into a `string` cache key

@@ -33,11 +33,6 @@ type EvalThunk<A> = () => Eval<A> | A;
  */
 type EvalAfter<A> = (a: A) => Eval<A> | A;
 
-interface IEval<A> {
-  after(f: EvalAfter<A>): this;
-  readonly value: A;
-}
-
 /**
  * Lazy evaluation of any recursive function
  *
@@ -73,14 +68,17 @@ interface IEval<A> {
  * const even = (n: number): boolean => even_(n).value;
  * const odd = (n: number): boolean => odd_(n).value;
  */
-export class Eval<A> implements IEval<A> {
+export class Eval<A> {
   private _after: EvalAfter<A> | undefined = undefined;
   private _up: Eval<A> | undefined = undefined;
   private _cached: A | undefined;
+  private _isCached: boolean = false;
 
   constructor(
     private readonly _value: EvalThunk<A>,
-    private readonly _options: EvalOptions = { strategy: EvalStrategy.Later }
+    private readonly _options: Readonly<EvalOptions> = {
+      strategy: EvalStrategy.Later,
+    }
   ) {
     if (this._options.strategy === EvalStrategy.Now) {
       this._cache();
@@ -105,11 +103,12 @@ export class Eval<A> implements IEval<A> {
       case EvalStrategy.Always:
         return this._evaluate();
       case EvalStrategy.Later:
-        return this._cache();
+        return this._isCached ? this._cached! : this._cache();
     }
   }
 
   private _cache(): A {
+    this._isCached = true;
     return (this._cached = this._evaluate());
   }
 
@@ -117,26 +116,21 @@ export class Eval<A> implements IEval<A> {
     // Start calculating from this Eval - it's the top of the stack
     let e: Eval<A> = this;
     // A value calculated at the current step
-    let x: Eval<A> | A = e._value();
+    let x: Eval<A> | A = e.getStepValue();
     while (true) {
       if (x instanceof Eval) {
         // Next case is generated, go down and calculate the next step
         x._up = e;
         e = x;
-        x = e._value();
+        x = e.getStepValue();
       } else {
         // Reached the base case; `after` call determines where to go
-        if (e._after) {
-          x = e._after(x);
-          // `after` is evaluated on a bottom->top route; if it generates `Eval`
-          // and is not cleared, on a next way up it generates an infinite loop
-          e._after = undefined;
-        }
+        x = e.getStepAfter(x);
         if (x instanceof Eval) {
           // `after` generated `Eval`, go down
           x._up = e;
           e = x;
-          x = e._value();
+          x = e.getStepValue();
         } else {
           // `after` generated not an `Eval`, continue up
           if (e._up) {
@@ -148,6 +142,22 @@ export class Eval<A> implements IEval<A> {
           }
         }
       }
+    }
+  }
+
+  private getStepValue(): Eval<A> | A {
+    return this._value();
+  }
+
+  private getStepAfter(x: A): Eval<A> | A {
+    if (this._after) {
+      let y = this._after(x);
+      // `after` is evaluated on a bottom->top route; if it generates `Eval`
+      // and is not cleared, on a next way up it generates an infinite loop
+      this._after = undefined;
+      return y;
+    } else {
+      return x;
     }
   }
 }

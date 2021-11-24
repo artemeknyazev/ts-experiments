@@ -1,9 +1,10 @@
-import { Eval, always } from "./Eval";
+import { Eval, always, now, later } from "./Eval";
 import {
   Ack,
   Adder,
   Fact,
   Fib,
+  Predicate,
   ack as ackRef,
   adder as adderRef,
   fact as factRef,
@@ -15,6 +16,39 @@ import {
   checkFib,
   checkAck,
 } from "./utils";
+
+it("`always` evaluates a thunk on every call", () => {
+  const f = jest.fn(() => 1);
+  expect(f).toBeCalledTimes(0);
+  const e = always(f);
+  expect(f).toBeCalledTimes(0);
+  expect(e.value).toBe(1);
+  expect(f).toBeCalledTimes(1);
+  expect(e.value).toBe(1);
+  expect(f).toBeCalledTimes(2);
+});
+
+it("`now` evaluates a thunk at creation and memoizes the result", () => {
+  const f = jest.fn(() => 1);
+  expect(f).toBeCalledTimes(0);
+  const e = now(f);
+  expect(f).toBeCalledTimes(1);
+  expect(e.value).toBe(1);
+  expect(f).toBeCalledTimes(1);
+  expect(e.value).toBe(1);
+  expect(f).toBeCalledTimes(1);
+});
+
+it("`later` evaluates a thunk at the first call and memoizes the result", () => {
+  const f = jest.fn(() => 1);
+  expect(f).toBeCalledTimes(0);
+  const e = later(f);
+  expect(f).toBeCalledTimes(0);
+  expect(e.value).toBe(1);
+  expect(f).toBeCalledTimes(1);
+  expect(e.value).toBe(1);
+  expect(f).toBeCalledTimes(1);
+});
 
 it("transforms trampolined standard form factorial correctly", () => {
   const fact_ = (n: number): Eval<number> =>
@@ -57,8 +91,8 @@ it("transforms mutually recursive even/odd functions correctly", () => {
     always(() => (n === 0 ? true : odd_(n - 1)));
   const odd_ = (n: number): Eval<boolean> =>
     always(() => (n === 0 ? false : even_(n - 1)));
-  const even = (n: number): boolean => even_(n).value;
-  const odd = (n: number): boolean => odd_(n).value;
+  const even: Predicate<number> = (n) => even_(n).value;
+  const odd: Predicate<number> = (n) => odd_(n).value;
 
   checkEvenOdd(even, odd);
 });
@@ -76,3 +110,5 @@ it("transforms trampolined Ackerman function correctly", () => {
 
   checkAck(ack, ackRef);
 });
+
+// todo: mutual recursion with a function with different number of args returning a different type and an `after` function converting it to a type of a current function; requires changing types
