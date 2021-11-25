@@ -2,6 +2,8 @@
 // Common Types
 // -----------------------------------------------------------------------------
 
+import * as O from "fp-ts/Option";
+
 export type AnyFunction = (...args: any[]) => any;
 
 // -----------------------------------------------------------------------------
@@ -106,6 +108,33 @@ export function checkAck(ack: Ack, ackRef: Ack): void {
     for (let n = 0; n < 6; n++) {
       expect(ack(m, n)).toBe(ackRef(m, n));
     }
+  }
+}
+
+export function checkMutRec(
+  f: (n: number) => number,
+  g: (n: number, b: boolean) => O.Option<number>
+): void {
+  for (let [[n, b], r] of [
+    [[0, true], O.some(0)],
+    [[0, false], O.some(0)],
+    [[1, true], O.none],
+    [[1, false], O.some(1)],
+    [[2, true], O.none],
+    [[2, false], O.some(0)],
+    [[3, true], O.none],
+    [[3, false], O.some(-1)],
+  ] as [[number, boolean], O.Option<number>][]) {
+    expect(g(n, b)).toEqual(r);
+  }
+
+  for (let [n, r] of [
+    [0, 1],
+    [1, 0],
+    [2, -1],
+    [3, 1],
+  ] as [number, number][]) {
+    expect(f(n)).toBe(r);
   }
 }
 

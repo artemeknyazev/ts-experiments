@@ -1,4 +1,4 @@
-import { Eval, always, now, later } from "./Eval";
+import { Eval, always, now, later, of } from "./Eval";
 import {
   Ack,
   Adder,
@@ -15,7 +15,27 @@ import {
   checkFact,
   checkFib,
   checkAck,
+  checkMutRec,
 } from "./utils";
+import * as O from "fp-ts/Option";
+
+it("`after` chains with simple functions", () => {
+  const e1 = of(1);
+  const e2 = e1.after((x) => x + 1);
+  const e3 = e2.after((x) => (x > 1 ? O.some(x) : O.none));
+  expect(e1.value).toBe(1);
+  expect(e2.value).toBe(2);
+  expect(e3.value).toEqual(O.some(2));
+});
+
+it("`after` chains with functions returning `Eval`", () => {
+  const e1 = of(1);
+  const e2 = e1.after((x) => always(() => x + 1));
+  const e3 = e2.after((x) => always(() => (x > 1 ? O.some(x) : O.none)));
+  expect(e1.value).toBe(1);
+  expect(e2.value).toBe(2);
+  expect(e3.value).toEqual(O.some(2));
+});
 
 it("`always` evaluates a thunk on every call", () => {
   const f = jest.fn(() => 1);
@@ -111,4 +131,24 @@ it("transforms trampolined Ackerman function correctly", () => {
   checkAck(ack, ackRef);
 });
 
-// todo: mutual recursion with a function with different number of args returning a different type and an `after` function converting it to a type of a current function; requires changing types
+it("mutual recursion of functions with different signatures and return types", () => {
+  type F = (n: number) => number;
+  type G = (n: number, b: boolean) => O.Option<number>;
+  const f_ = (n: number): Eval<number> =>
+    always(() =>
+      n > 0
+        ? g_(n, n % 3 === 0).after(
+            O.match(
+              () => n - 2,
+              (x) => x - 1
+            )
+          )
+        : 1
+    );
+  const g_ = (n: number, b: boolean): Eval<O.Option<number>> =>
+    always(() => (n > 0 ? (b ? O.none : f_(n - 1).after(O.some)) : O.some(0)));
+  const f: F = (n) => f_(n).value;
+  const g: G = (n, b) => g_(n, b).value;
+
+  checkMutRec(f, g);
+});

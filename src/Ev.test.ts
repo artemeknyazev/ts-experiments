@@ -17,9 +17,11 @@ import {
   checkFact,
   checkFib,
   checkAck,
+  checkMutRec,
   sortAckCacheEntries,
   sortFibCacheEntries,
 } from "./utils";
+import * as O from "fp-ts/lib/Option";
 
 it("transforms trampolined standard form factorial correctly", () => {
   const fact_: EvF<Fact> = (n: number) =>
@@ -155,4 +157,22 @@ it("transforms trampolined Ackerman function correctly with memoization", () => 
   checkAck(ack, ackRef);
 });
 
-// todo: mutual recursion with a function with different number of args returning a different type and an `after` function converting it to a type of a current function; requires changing types
+it("mutual recursion of functions with different signatures and return types", () => {
+  type F = (n: number) => number;
+  type G = (n: number, b: boolean) => O.Option<number>;
+  const f_: EvF<F> = (n: number) =>
+    n > 0
+      ? ev(g_)(n, n % 3 === 0).after(
+          O.match(
+            () => n - 2,
+            (x) => x - 1
+          )
+        )
+      : 1;
+  const g_: EvF<G> = (n: number, b: boolean) =>
+    n > 0 ? (b ? O.none : ev(f_)(n - 1).after(O.some)) : O.some(0);
+  const f: F = (n: number) => ev(f_)(n).value;
+  const g: G = (n: number, b: boolean) => ev(g_)(n, b).value;
+
+  checkMutRec(f, g);
+});

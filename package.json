@@ -5,7 +5,8 @@
   "scripts": {
     "test": "npx jest",
     "prepare": "npx husky install",
-    "pretty": "npx prettier --write ."
+    "pretty": "npx prettier --write .",
+    "check": "npx tsc --noEmit"
   },
   "keywords": [],
   "author": "Artem E. Knyazev <artem.e.knyazev@yandex.ru>",

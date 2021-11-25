@@ -14,27 +14,26 @@ interface EvOptions {
   cache?: EvCache<AnyFunction, any[], any>;
 }
 
-type EvAfter<F extends AnyFunction> = (
+type EvAfter<F extends AnyFunction, B> = (
   x: ReturnType<F>
-) => ReturnType<F> | Ev<F>;
+) => B | Ev<AnyFunction, B>;
 
 export type EvF<F extends AnyFunction> = (
   ...args: Parameters<F>
-) => Ev<EvF<F>> | ReturnType<F>;
+) => ReturnType<F> | Ev<AnyFunction, ReturnType<F>>;
 
-export class Ev<F extends AnyFunction> {
-  private _after: EvAfter<F> | undefined = undefined;
-  private _up: Ev<F> | undefined = undefined;
+export class Ev<F extends AnyFunction, B = ReturnType<F>> {
+  private _up: Ev<(...args: any[]) => B, any> | undefined = undefined;
 
   constructor(
     private readonly _fn: EvF<F>,
     private readonly _args: Parameters<F>,
-    private readonly _options?: EvOptions
+    private readonly _options?: EvOptions,
+    private _after?: EvAfter<F, B>
   ) {}
 
-  public after(after: EvAfter<F>): this {
-    this._after = after;
-    return this;
+  public after<B = ReturnType<F>>(after: EvAfter<F, B>): Ev<F, B> {
+    return new Ev(this._fn, this._args, this._options, after);
   }
 
   get value(): ReturnType<F> {
@@ -43,9 +42,9 @@ export class Ev<F extends AnyFunction> {
 
   private _evaluate(): ReturnType<F> {
     // Start calculating from this `Ev` - it's the top of the stack
-    let e: Ev<any> = this;
+    let e: Ev<any, any> = this;
     // A value calculated at the current step
-    let x = e._getStepValue();
+    let x: any | Ev<any, any> = e._getStepValue();
     while (true) {
       if (x instanceof Ev) {
         // Next case is generated, go down and calculate the next step
@@ -75,14 +74,6 @@ export class Ev<F extends AnyFunction> {
     }
   }
 
-  private _isCachedStepValue(): boolean {
-    return this._options!.cache!.has(this._fn, this._args);
-  }
-
-  private _getCachedStepValue(): ReturnType<F> {
-    return this._options!.cache!.get(this._fn, this._args)!;
-  }
-
   private _afterStepValueCalculated(x: ReturnType<F>): void {
     // May receive a new value for an already calculated step meaning `after`
     // function was called; but `after` is related to the step above, so we
@@ -95,13 +86,14 @@ export class Ev<F extends AnyFunction> {
     }
   }
 
-  private _getStepValue(): Ev<F> | ReturnType<F> {
-    return this._options?.cache && this._isCachedStepValue()
-      ? this._getCachedStepValue()
+  private _getStepValue(): ReturnType<F> | Ev<AnyFunction, ReturnType<F>> {
+    return this._options?.cache &&
+      this._options!.cache!.has(this._fn, this._args)
+      ? this._options!.cache!.get(this._fn, this._args)!
       : this._fn.apply(undefined, this._args);
   }
 
-  private _getStepAfter(x: ReturnType<F>): Ev<any> | ReturnType<F> {
+  private _getStepAfter(x: ReturnType<F>): B | Ev<AnyFunction, B> {
     if (this._after) {
       let y = this._after(x);
       // `after` is evaluated on a bottom->top route; if it generates `Eval`
@@ -109,7 +101,8 @@ export class Ev<F extends AnyFunction> {
       this._after = undefined;
       return y;
     } else {
-      return x;
+      // When `after` is not specified, it's assumed that B = A
+      return x as unknown as B;
     }
   }
 }
@@ -150,16 +143,16 @@ export const defaultCache = new EvDefaultCache();
 
 export const createEv =
   (options?: EvOptions) =>
-  <F extends AnyFunction>(f: EvF<F>) =>
-  (...args: Parameters<F>): Ev<F> =>
-    new Ev<F>(f, args, options);
+  <F extends AnyFunction, B = ReturnType<F>>(f: EvF<F>) =>
+  (...args: Parameters<F>): Ev<F, B> =>
+    new Ev<F, B>(f, args, options);
 
 export const evMemo =
-  <F extends AnyFunction>(f: EvF<F>) =>
-  (...args: Parameters<F>): Ev<F> =>
-    new Ev<F>(f, args, { cache: defaultCache });
+  <F extends AnyFunction, B = ReturnType<F>>(f: EvF<F>) =>
+  (...args: Parameters<F>): Ev<F, B> =>
+    new Ev<F, B>(f, args, { cache: defaultCache });
 
 export const ev =
-  <F extends AnyFunction>(f: EvF<F>) =>
-  (...args: Parameters<F>): Ev<F> =>
-    new Ev<F>(f, args);
+  <F extends AnyFunction, B = ReturnType<F>>(f: EvF<F>) =>
+  (...args: Parameters<F>): Ev<F, B> =>
+    new Ev<F, B>(f, args);
