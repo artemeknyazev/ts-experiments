@@ -1,10 +1,37 @@
-// -----------------------------------------------------------------------------
-// Common Types
-// -----------------------------------------------------------------------------
-
 import * as O from "fp-ts/Option";
 
+// -----------------------------------------------------------------------------
+// Common types
+// -----------------------------------------------------------------------------
+
 export type AnyFunction = (...args: any[]) => any;
+
+// -----------------------------------------------------------------------------
+// Utils
+// -----------------------------------------------------------------------------
+
+/**
+ * Defer a function call so that the stack empties to prevent stack overflow
+ *
+ * @param thunk A deferred function
+ */
+export const next =
+  <A extends any[]>(thunk: (...args: A) => any) =>
+  (...args: A): void => {
+    process.nextTick(() => {
+      thunk.apply(undefined, args);
+    });
+  };
+
+/**
+ * Defer a value resolution using the `next` call
+ *
+ * @param a A deferred value
+ */
+export const resolveNext =
+  <A>(a: A) =>
+  (resolve: (a: A) => any): void =>
+    next(resolve)(a);
 
 // -----------------------------------------------------------------------------
 //  Reference implementations
@@ -79,7 +106,7 @@ export function checkAdder(adder: Adder, adderRef: Adder): void {
 }
 
 export function checkFib(fib: Fib, fibRef: Fib): void {
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 10; i++) {
     expect(fib(i)).toBe(fibRef(i));
   }
 }
@@ -88,7 +115,7 @@ export function checkEvenOdd(
   even: Predicate<number>,
   odd: Predicate<number>
 ): void {
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 10; i++) {
     const isEven = i % 2 === 0;
     expect(even(i)).toBe(isEven);
     expect(odd(i)).toBe(!isEven);
