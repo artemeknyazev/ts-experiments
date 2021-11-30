@@ -1,6 +1,10 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
+# Hack for local development because Node is not added to PATH in WebStorm
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
 npm run check
 npx lint-staged
 npm test

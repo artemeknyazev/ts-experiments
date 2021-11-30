@@ -16,7 +16,7 @@ import {
   checkFib,
   checkAck,
   checkMutRec,
-} from "./utils";
+} from "../utils";
 import * as O from "fp-ts/Option";
 
 it("`after` chains with simple functions", () => {

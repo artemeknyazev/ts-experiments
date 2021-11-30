@@ -20,7 +20,7 @@ import {
   checkMutRec,
   sortAckCacheEntries,
   sortFibCacheEntries,
-} from "./utils";
+} from "../utils";
 import * as O from "fp-ts/lib/Option";
 
 it("transforms trampolined standard form factorial correctly", () => {

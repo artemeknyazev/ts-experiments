@@ -1,7 +1,7 @@
 import * as E from "fp-ts/lib/Either";
 import * as A from "fp-ts/lib/Array";
 import { pipe } from "fp-ts/lib/function";
-import { AnyFunction } from "./utils";
+import { AnyFunction } from "../utils";
 
 import Either = E.Either;
 
@@ -230,7 +230,7 @@ export type Trampolined<F extends AnyFunction> = Trampolined_.Trampolined<F>;
  * @example
  * type Fact = (x: number) => number;
  * const fact_: Trampolined<Fact> = (next, n) =>
- *   n > 1 ? call(ftr_, (x) => call(next, x * n), n - 1) : call(next, 1);
+ *   n > 1 ? call(fact_, (x) => call(next, x * n), n - 1) : call(next, 1);
  * const fact: Fact = trampoline(fact_);
  *
  * @example

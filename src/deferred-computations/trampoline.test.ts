@@ -26,7 +26,7 @@ import {
   checkFact,
   checkFib,
   checkAck,
-} from "./utils";
+} from "../utils";
 
 describe("trampolineORSR", () => {
   it("transforms trampolined standard form factorial correctly", () => {

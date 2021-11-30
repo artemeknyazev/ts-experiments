@@ -1,7 +1,7 @@
 import { pipe } from "fp-ts/lib/function";
 import * as O from "fp-ts/lib/Option";
 import { ap, chain, flatten, map, of, Pr, then, unwrap, wrap } from "./Pr";
-import { fact as factRef, fib as fibRef, resolveNext } from "./utils";
+import { fact as factRef, fib as fibRef, resolveNext } from "../utils";
 
 it("of (sync) - unwrap", (done) => {
   const n = 1;
@@ -98,7 +98,7 @@ it("flatten", (done) => {
   );
 });
 
-it("factorial", (done) => {
+it("Factorial", (done) => {
   const fact_ = (n: number): Pr<Pr<number>> =>
     n > 1
       ? wrap(() =>

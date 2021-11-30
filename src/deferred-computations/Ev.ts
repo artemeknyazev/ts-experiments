@@ -1,4 +1,4 @@
-import { AnyFunction } from "./utils";
+import { AnyFunction } from "../utils";
 
 export interface EvCache<
   F extends AnyFunction,

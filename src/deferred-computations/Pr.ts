@@ -1,4 +1,4 @@
-import { next } from "./utils";
+import { next } from "../utils";
 import { Pointed1 } from "fp-ts/Pointed";
 import { Functor1, flap as flap_ } from "fp-ts/Functor";
 import {
@@ -257,6 +257,12 @@ const transformItem = <A, B>(
   }
 };
 
+/**
+ * Transforms a Pr-chain going from end to start to an UnwrapPr-chain going from
+ * start to end
+ *
+ * @param pr An end of the Pr-chain
+ */
 const transformChain = <A>(pr: Pr<A>): UnwrapPr<any> => {
   let curr: Pr<any> = pr;
   let result = transformItem(curr, undefined);
