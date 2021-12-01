@@ -12,7 +12,8 @@
   "author": "Artem E. Knyazev <artem.e.knyazev@yandex.ru>",
   "license": "MIT",
   "dependencies": {
-    "fp-ts": "2.11.5"
+    "fp-ts": "2.11.5",
+    "fp-ts-contrib": "0.1.26"
   },
   "devDependencies": {
     "@babel/cli": "7.16.0",
