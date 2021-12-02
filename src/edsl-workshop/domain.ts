@@ -28,6 +28,8 @@ export interface CreateEntityRequest {
   readonly name: string;
 }
 
+export type PutEntityRequest = CreateEntityRequest;
+
 export interface UpdateEntityRequest {
   readonly name: string;
 }
@@ -39,6 +41,12 @@ export interface UpdateEntityRequest {
 export class EntityDoesNotExistError extends Error {
   constructor(id: EntityId) {
     super(`Entity ${id} doesn't exist`);
+  }
+}
+
+export class EntityAlreadyExistsError extends Error {
+  constructor(id: EntityId) {
+    super(`Entity ${id} already exists`);
   }
 }
 
@@ -64,6 +72,7 @@ export class UpdateEntityValidationError extends Error {
 export type GetEntitiesError = never;
 export type GetEntityErrors = EntityDoesNotExistError;
 export type CreateEntityErrors = CreateEntityValidationError;
+export type PutEntityErrors = EntityAlreadyExistsError | CreateEntityErrors;
 export type UpdateEntityErrors =
   | UpdateEntityValidationError
   | EntityDoesNotExistError;

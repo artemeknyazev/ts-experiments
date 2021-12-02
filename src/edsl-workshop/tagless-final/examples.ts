@@ -4,7 +4,7 @@ import { pipe } from "fp-ts/function";
 import * as E from "fp-ts/Either";
 
 import { CreateEntityRequest, EntityId } from "../domain";
-import { Program, getInstanceFor } from "./api";
+import { getInstanceFor, Program } from "./api";
 
 export const createEntityIfNotExists =
   <F extends URIS>(P: Program<F>) =>
