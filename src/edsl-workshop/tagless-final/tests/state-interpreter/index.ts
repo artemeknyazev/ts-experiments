@@ -11,19 +11,19 @@ export interface TestState {
   };
 }
 
-export const InterpreterStateURI = "InterpreterState";
-export type InterpreterStateURI = typeof InterpreterStateURI;
+export const URI = "InterpreterState";
+export type URI = typeof URI;
 
 type InterpreterState<A> = State<TestState, A>;
 
 declare module "fp-ts/lib/HKT" {
   interface URItoKind<A> {
-    [InterpreterStateURI]: InterpreterState<A>;
+    [URI]: InterpreterState<A>;
   }
 }
 
-export const stateInterpreter: Program<InterpreterStateURI> = {
+export const stateInterpreter: Program<URI> = {
   ...S.Monad,
-  URI: InterpreterStateURI,
+  URI: URI,
   ...dbGetInstanceFor(),
 };

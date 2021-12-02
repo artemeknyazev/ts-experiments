@@ -9,3 +9,4 @@ A small collection of Typescript experiments
   - Cat's-like `Eval` data structure for sync computations
   - various trampoliners with optional caching
 - ["Building eDSLs in functional TypeScript" workshop files](https://github.com/artemeknyazev/ts-experiments/tree/master/src/edsl-workshop) -- implementation directed by [Yuri Bogomolov's workshop](https://github.com/YBogomolov/workshop-edsl-in-typescript)
+- [eDSL experiments](https://github.com/artemeknyazev/ts-experiments/tree/master/src/edsl) -- various experiments with eDSLs, tagged and tagless, and transformations between them
