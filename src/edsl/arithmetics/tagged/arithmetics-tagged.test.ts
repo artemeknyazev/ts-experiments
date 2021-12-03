@@ -1,17 +1,22 @@
 import {
+  Op,
   cnst,
   neg,
   add,
   sub,
   mul,
   div,
+  pow,
   evaluateNum,
   evaluateStr,
-  Op,
+  evaluateNumEval,
+  evaluateStrEval,
+  evaluateExtStr,
+  evaluateExtStrEval,
 } from "./arithmetics-tagged";
 
 // todo: write this as an unfolder for `ana`
-const genAddMulTree = (n: number, m: number): Op => {
+const genAddMulTree = <A>(n: number, m: number): Op<A> => {
   if (n <= m) return cnst(n);
 
   for (let d = m; d > 1; d--) {
@@ -26,8 +31,8 @@ const genAddMulTree = (n: number, m: number): Op => {
 };
 
 // todo: write this as an unfolder for `ana`
-const genAddOneTree = (n: number): Op => {
-  let op: Op = cnst(1);
+const genAddOneTree = <A>(n: number): Op<A> => {
+  let op: Op<A> = cnst(1);
   for (let m = n - 1; m > 0; m--) {
     op = add(cnst(1), op);
   }
@@ -37,6 +42,13 @@ const genAddOneTree = (n: number): Op => {
 const testSequence = div(
   mul(cnst(15), neg(sub(cnst(7), mul(cnst(4), cnst(4))))),
   add(cnst(2), cnst(3))
+);
+
+// todo: fix types to allow extended functions to be used with the base ones
+const testSequenceExt = div(
+  // @ts-ignore
+  add(mul(cnst(5), cnst(7)), pow(cnst(2), cnst(3))),
+  sub(div(cnst(15), cnst(5)), mul(cnst(2), cnst(5)))
 );
 
 describe("tagged arithmetics", () => {
@@ -53,8 +65,21 @@ describe("tagged arithmetics", () => {
     expect(evaluateStr(testSequence)).toBe("((15*-(7-(4*4)))/(2+3))");
   });
 
-  it.skip("stack safe versions", () => {
-    const op = genAddOneTree(2 ** 16);
+  it("evaluateExtStr for provided op sequence", () => {
+    expect(evaluateExtStr(testSequenceExt)).toBe(
+      "((([5]*[7])+[2]^[3])/(([15]/[5])-([2]*[5])))"
+    );
+  });
+
+  it("evaluateExtStrEval for provided op sequence", () => {
+    expect(evaluateExtStrEval(testSequenceExt).value).toBe(
+      "((([5]*[7])+[2]^[3])/(([15]/[5])-([2]*[5])))"
+    );
+  });
+
+  it("stack safe versions", () => {
+    const n = 2 ** 16;
+    const op = genAddOneTree(n);
 
     expect(() => {
       evaluateNum(op);
@@ -65,11 +90,11 @@ describe("tagged arithmetics", () => {
     }).toThrow();
 
     expect(() => {
-      throw new Error("stack-safe evaluateNum not implemented");
+      expect(evaluateNumEval(op).value).toBe(n);
     }).not.toThrow();
 
     expect(() => {
-      throw new Error("stack-safe evaluateStr not implemented");
+      evaluateStrEval(op).value;
     }).not.toThrow();
   });
 });
