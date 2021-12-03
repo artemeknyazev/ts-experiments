@@ -1,48 +1,16 @@
-import { Arithmetics, getInstanceFor } from "./arithmetics-tagless";
-import { Kind, URIS } from "fp-ts/HKT";
-
-const InterpreterNumURI = "InterpreterNum";
-type InterpreterNumURI = typeof InterpreterNumURI;
-
-const InterpreterStrURI = "InterpreterStr";
-type InterpreterStrURI = typeof InterpreterStrURI;
-
-const InterpreterNumThunkURI = "InterpreterNumThunk";
-type InterpreterNumThunkURI = typeof InterpreterNumThunkURI;
-
-declare module "fp-ts/lib/HKT" {
-  interface URItoKind<A> {
-    [InterpreterNumURI]: A;
-    [InterpreterStrURI]: A;
-    [InterpreterNumThunkURI]: () => A;
-  }
-}
-
-// todo: type should contain InterpreterNumURI and not string!
-const interpreterNum: Arithmetics<InterpreterNumURI, number> = {
-  cnst: (a) => Number(a),
-  neg: (a) => -a,
-  add: (op0, op1) => op0 + op1,
-  mul: (op0, op1) => op0 * op1,
-};
-
-const interpreterStr: Arithmetics<InterpreterStrURI, string> = {
-  cnst: (a) => String(a),
-  neg: (a) => "-" + a,
-  add: (op0, op1) => "(" + op0 + "+" + op1 + ")",
-  mul: (op0, op1) => "(" + op0 + "*" + op1 + ")",
-};
-
-const interpreterNumThunk: Arithmetics<InterpreterNumThunkURI, number> = {
-  cnst: (a) => () => Number(a),
-  neg: (a) => () => -a(),
-  add: (op0, op1) => () => op0() + op1(),
-  mul: (op0, op1) => () => op0() * op1(),
-};
+import {
+  Arithmetics,
+  getInstanceFor,
+  interpreterNum,
+  interpreterStr,
+  interpreterNumThunk,
+  interpreterNumEval,
+  interpreterStrEval,
+} from "./arithmetics-tagless";
 
 const testSequence =
-  <F extends URIS, A>(P: Arithmetics<F, A>) =>
-  (a: A, b: A): Kind<F, A> => {
+  <A>(P: Arithmetics<A>) =>
+  (a: any, b: any): A => {
     const p = getInstanceFor(P);
     return p.add(
       p.mul(p.neg(p.cnst(a)), p.cnst(a)),
@@ -51,11 +19,11 @@ const testSequence =
   };
 
 // todo: write this as an unfolder for `ana`
-const genAddMullTree = <F extends URIS, A>(
-  P: Arithmetics<F, A>
-): ((n: number, m: number) => Kind<F, A>) => {
+const genAddMullTree = <A>(
+  P: Arithmetics<A>
+): ((n: number, m: number) => A) => {
   const p = getInstanceFor(P);
-  const it = (n: number, m: number): Kind<F, A> => {
+  const it = (n: number, m: number): A => {
     if (n <= m) return p.cnst(n);
 
     for (let d = m; d > 1; d--) {
@@ -73,9 +41,7 @@ const genAddMullTree = <F extends URIS, A>(
 };
 
 // todo: write this as an unfolder for `ana`
-const genAddOneTree = <F extends URIS, A>(
-  P: Arithmetics<F, A>
-): ((n: number) => Kind<F, A>) => {
+const genAddOneTree = <A>(P: Arithmetics<A>): ((n: number) => A) => {
   const p = getInstanceFor(P);
   return (n) => {
     let op = p.cnst(1);
@@ -119,9 +85,10 @@ describe("tagless arithmetics", () => {
       expect(genAddMullTree(interpreterNumThunk)(n, 9)()).toBe(n);
   });
 
-  it.skip("stack safe versions", () => {
+  it("stack safe versions", () => {
     const n = 2 ** 16;
 
+    // Two following are stack safe because of an eager evaluation in interpreters
     expect(() => {
       expect(genAddOneTree(interpreterNum)(n)).toBe(n);
     }).not.toThrow();
@@ -130,12 +97,18 @@ describe("tagless arithmetics", () => {
       genAddOneTree(interpreterStr)(n);
     }).not.toThrow();
 
+    // Not stack safe because a tree of thunks is too tall
     expect(() => {
       genAddOneTree(interpreterNumThunk)(n)();
     }).toThrow();
 
+    // Two following a stack safe because of `Eval`-wrapping
     expect(() => {
-      throw new Error("stack-safe interpreterNumThunk not implemented");
+      expect(genAddOneTree(interpreterNumEval)(n).value).toBe(n);
+    }).not.toThrow();
+
+    expect(() => {
+      genAddOneTree(interpreterStrEval)(n).value;
     }).not.toThrow();
   });
 });
