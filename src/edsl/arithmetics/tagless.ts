@@ -1,9 +1,9 @@
 import { Kind, URIS } from "fp-ts/HKT";
 import { Monad1 } from "fp-ts/Monad";
-import { evolve } from "fp-ts/struct";
+import { flow } from "fp-ts/function";
 
-import * as Ev from "../../../deferred-computations/Eval";
-import { liftMBinary, liftMUnary, liftMUnaryS } from "../../../utils";
+import * as Ev from "../../deferred-computations/Eval";
+import { liftMBinary, liftMUnary, liftMUnaryS } from "../../utils";
 import Eval = Ev.Eval;
 
 // -----------------------------------------------------------------------------
@@ -138,16 +138,15 @@ export const interpreterNumEval: Arithmetics<Eval<number>> = {
 /**
  * Lift `Arithmetics` interpreter into monad `M`
  */
-const arithmeticsInterpreterLiftM = <F extends URIS, A>(
-  M: Monad1<F>
-): ((int: Arithmetics<A>) => Arithmetics<Kind<F, A>>) =>
-  evolve({
-    cnst: liftMUnaryS<F, A>(M),
-    neg: liftMUnary<F, A>(M),
-    add: liftMBinary<F, A>(M),
-    sub: liftMBinary<F, A>(M),
-    mul: liftMBinary<F, A>(M),
-    div: liftMBinary<F, A>(M),
+export const arithmeticsInterpreterLiftM =
+  <F extends URIS, A>(M: Monad1<F>) =>
+  (int: Arithmetics<A>): Arithmetics<Kind<F, A>> => ({
+    cnst: liftMUnaryS<F, A>(M)(int.cnst),
+    neg: liftMUnary<F, A>(M)(int.neg),
+    add: liftMBinary<F, A>(M)(int.add),
+    sub: liftMBinary<F, A>(M)(int.sub),
+    mul: liftMBinary<F, A>(M)(int.mul),
+    div: liftMBinary<F, A>(M)(int.div),
   });
 
 /**
@@ -155,3 +154,49 @@ const arithmeticsInterpreterLiftM = <F extends URIS, A>(
  */
 export const interpreterStrEval: Arithmetics<Eval<string>> =
   arithmeticsInterpreterLiftM<Ev.URI, string>(Ev.Monad)(interpreterStr);
+
+// -----------------------------------------------------------------------------
+// Extended interpreter implementations
+// -----------------------------------------------------------------------------
+
+/**
+ * Extended arithmetics interpreter for `number`s
+ */
+export const interpreterExtNum: ArithmeticsExt<number> = {
+  ...interpreterNum,
+  // A new method
+  pow: (op0, op1) => op0 ** op1,
+};
+
+/**
+ * Extended arithmetics interpreter for `string`s
+ */
+export const interpreterExtStr: ArithmeticsExt<string> = {
+  ...interpreterStr,
+  // A modified existing method
+  cnst: flow(interpreterStr.cnst, (a) => `[${a}]`),
+  // A new method
+  pow: (op0, op1) => op0 + "^" + op1,
+};
+
+/**
+ * Lift `ArithmeticsExt` interpreter into monad `M`
+ */
+export const arithmeticsInterpreterExtLiftM =
+  <F extends URIS, A>(M: Monad1<F>) =>
+  (int: ArithmeticsExt<A>): ArithmeticsExt<Kind<F, A>> => ({
+    ...arithmeticsInterpreterLiftM<F, A>(M)(int),
+    pow: liftMBinary<F, A>(M)(int.pow),
+  });
+
+/**
+ * Extended arithmetics interpreter for `Eval<number>`s
+ */
+export const interpreterExtNumEval: ArithmeticsExt<Eval<number>> =
+  arithmeticsInterpreterExtLiftM<Ev.URI, number>(Ev.Monad)(interpreterExtNum);
+
+/**
+ * Extended arithmetics interpreter for `Eval<string>`s
+ */
+export const interpreterExtStrEval: ArithmeticsExt<Eval<string>> =
+  arithmeticsInterpreterExtLiftM<Ev.URI, string>(Ev.Monad)(interpreterExtStr);

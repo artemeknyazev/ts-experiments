@@ -1,7 +1,7 @@
 import * as O from "fp-ts/Option";
 import { Kind, URIS } from "fp-ts/HKT";
 import { Monad1 } from "fp-ts/Monad";
-import { flow } from "fp-ts/function";
+import { flow, identity } from "fp-ts/function";
 import { Do } from "fp-ts-contrib/Do";
 
 // -----------------------------------------------------------------------------
@@ -36,6 +36,14 @@ export const resolveNext =
   <A>(a: A) =>
   (resolve: (a: A) => any): void =>
     next(resolve)(a);
+
+/**
+ * Postpone a call to a function with a monad
+ */
+export const liftMUnaryAp: <F extends URIS, A, B>(
+  M: Monad1<F>
+) => (f: (a: A) => Kind<F, B>) => (a: A) => Kind<F, B> = (M) => (f) => (a) =>
+  M.chain(M.ap(M.of(f), M.of(a)), identity);
 
 /**
  * Transform a unary function into a function returning a lifted into a monad result

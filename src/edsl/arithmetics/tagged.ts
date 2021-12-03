@@ -1,13 +1,13 @@
 import { Do } from "fp-ts-contrib/Do";
 
-import * as Ev from "../../../deferred-computations/Eval";
+import * as Ev from "../../deferred-computations/Eval";
 import Eval = Ev.Eval;
 
-const ConstantTag = "ConstantTag";
+export const ConstantTag = "ConstantTag";
 type ConstantTag = typeof ConstantTag;
 interface Constant {
   tag: ConstantTag;
-  value: number;
+  value: any;
 }
 
 export const cnst = (value: any): Constant => ({
@@ -15,7 +15,7 @@ export const cnst = (value: any): Constant => ({
   value,
 });
 
-const NegateTag = "NegateTag";
+export const NegateTag = "NegateTag";
 type NegateTag = typeof NegateTag;
 interface Negate<A> {
   tag: NegateTag;
@@ -27,7 +27,7 @@ export const neg = <A>(op0: Op<A>): Negate<A> => ({
   op0,
 });
 
-const AddTag = "AddTag";
+export const AddTag = "AddTag";
 type AddTag = typeof AddTag;
 interface Add<A> {
   tag: AddTag;
@@ -40,7 +40,7 @@ export const add = <A>(op0: Op<A>, op1: Op<A>): Add<A> => ({
   op1,
 });
 
-const SubTag = "SubTag";
+export const SubTag = "SubTag";
 type SubTag = typeof SubTag;
 interface Sub<A> {
   tag: SubTag;
@@ -54,7 +54,7 @@ export const sub = <A>(op0: Op<A>, op1: Op<A>): Sub<A> => ({
   op1,
 });
 
-const MulTag = "MulTag";
+export const MulTag = "MulTag";
 type MulTag = typeof MulTag;
 interface Mul<A> {
   tag: MulTag;
@@ -68,7 +68,7 @@ export const mul = <A>(op0: Op<A>, op1: Op<A>): Mul<A> => ({
   op1,
 });
 
-const DivTag = "DivTag";
+export const DivTag = "DivTag";
 type DivTag = typeof DivTag;
 interface Div<A> {
   tag: DivTag;
@@ -238,7 +238,7 @@ export const evaluateStrEval = <A>(op: Op<A>): Eval<string> =>
 // todo: implement `fix` combinator and validate that `fix(evaluateStrFEval)`
 //   transforms the same way as `evaluateStrEval`
 
-const PowTag = "PowTag";
+export const PowTag = "PowTag";
 type PowTag = typeof PowTag;
 interface Pow<A> {
   tag: PowTag;

@@ -13,7 +13,7 @@ import {
   evaluateStrEval,
   evaluateExtStr,
   evaluateExtStrEval,
-} from "./arithmetics-tagged";
+} from "./tagged";
 
 // todo: write this as an unfolder for `ana`
 const genAddMulTree = <A>(n: number, m: number): Op<A> => {
@@ -31,7 +31,7 @@ const genAddMulTree = <A>(n: number, m: number): Op<A> => {
 };
 
 // todo: write this as an unfolder for `ana`
-const genAddOneTree = <A>(n: number): Op<A> => {
+export const genAddOneTree = <A>(n: number): Op<A> => {
   let op: Op<A> = cnst(1);
   for (let m = n - 1; m > 0; m--) {
     op = add(cnst(1), op);
@@ -45,7 +45,7 @@ const testSequence = div(
 );
 
 // todo: fix types to allow extended functions to be used with the base ones
-const testSequenceExt = div(
+export const testSequenceExt = div(
   // @ts-ignore
   add(mul(cnst(5), cnst(7)), pow(cnst(2), cnst(3))),
   sub(div(cnst(15), cnst(5)), mul(cnst(2), cnst(5)))

@@ -6,7 +6,7 @@ import {
   interpreterNumThunk,
   interpreterNumEval,
   interpreterStrEval,
-} from "./arithmetics-tagless";
+} from "./tagless";
 
 const testSequence =
   <A>(P: Arithmetics<A>) =>
