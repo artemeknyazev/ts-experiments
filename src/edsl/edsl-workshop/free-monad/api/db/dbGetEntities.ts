@@ -2,7 +2,7 @@ import * as E from "fp-ts/Either";
 import { liftF } from "fp-ts-contrib/Free";
 import { identity } from "fp-ts/function";
 
-import { ProgramFURI } from "../";
+import { ProgramFURI } from "../index";
 import { Entity, GetEntitiesError } from "../../../domain";
 
 export const DbGetEntitiesTag = "DbGetEntities";

@@ -14,7 +14,7 @@ import {
   DbGetEntity,
   DbUpdateEntity,
 } from "../../api/db";
-import { URI } from "./";
+import { URI } from "./index";
 
 const dbGetEntities: DbGetEntities<URI> = () => (state) =>
   [E.right(Array.from(state.db.entities.values())), state];

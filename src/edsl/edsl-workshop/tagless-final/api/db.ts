@@ -12,7 +12,7 @@ import {
   UpdateEntityRequest,
   DeleteEntityErrors,
 } from "../../domain";
-import { Program } from "./";
+import { Program } from "./index";
 
 export type DbGetEntities<F extends URIS> = () => Kind<
   F,

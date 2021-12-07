@@ -2,7 +2,7 @@ import { Either } from "fp-ts/Either";
 import { liftF } from "fp-ts-contrib/Free";
 import { identity } from "fp-ts/function";
 
-import { ProgramFURI } from "../";
+import { ProgramFURI } from "../index";
 import {
   CreateEntityRequest,
   Entity,
