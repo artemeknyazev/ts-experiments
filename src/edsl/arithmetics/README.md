@@ -17,7 +17,7 @@ There are not-extendable interpreters (`evaluateNum`, `evaluateStr`) that are "c
 
 `evaluateStrFEval` and `evaluateExtStrFEval` are hand-written interpreter creators that lift calculations to `Eval` monad, ensuring stack safety.
 
-**NOTE:** the typing for the operations here is wrong, because operations of the base algebra can't accept operations of an extended one. All
+**NOTE:** the typing for the operations here is wrong, because operations of the base algebra can't accept operations of an extended one. This issue is fixed in [Extendable eDSLs/`003-fix.ts`](/src/edsl/extendable-edsls/003-fix.ts)
 
 ## [`tagless.ts`](/src/edsl/arithmetics/tagless.ts)
 

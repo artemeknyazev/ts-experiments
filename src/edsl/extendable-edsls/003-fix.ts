@@ -1,77 +1,80 @@
 // Interface containing all terms for the eDSL, both existing and new
 
-interface Terms<A> {}
+export interface Terms<A> {}
 
-type TermTags = keyof Terms<any>;
+export type TermTags = keyof Terms<any>;
 
-type TagToTerm<F extends TermTags, A> = F extends TermTags
+export type TagToTerm<F extends TermTags, A> = F extends TermTags
   ? Terms<A>[F]
   : never;
 
 // Recursive type wrapper
 
-interface FixTerm<F extends TermTags> {
+export interface FixTerm<F extends TermTags> {
   value: TagToTerm<F, FixTerm<F>>;
 }
 
-const fix = <F extends TermTags>(a: TagToTerm<F, FixTerm<F>>): FixTerm<F> => ({
+export const fix = <F extends TermTags>(
+  a: TagToTerm<F, FixTerm<F>>
+): FixTerm<F> => ({
   value: a,
 });
 
-const unfix = <F extends TermTags>(fa: FixTerm<F>): TagToTerm<F, FixTerm<F>> =>
-  fa.value;
+export const unfix = <F extends TermTags>(
+  fa: FixTerm<F>
+): TagToTerm<F, FixTerm<F>> => fa.value;
 
 // Commands
 
-const ConstTag = "Const";
-type ConstTag = typeof ConstTag;
+export const ConstTag = "Const";
+export type ConstTag = typeof ConstTag;
 
-interface Const {
+export interface Const {
   tag: ConstTag;
   a: any;
 }
 
-interface Terms<A> {
+export interface Terms<A> {
   [ConstTag]: Const;
 }
 
-const cnst = (a: any): FixTerm<ConstTag> => fix({ tag: ConstTag, a });
+export const cnst = (a: any): FixTerm<ConstTag> => fix({ tag: ConstTag, a });
 
-const NegTag = "Neg";
-type NegTag = typeof NegTag;
+export const NegTag = "Neg";
+export type NegTag = typeof NegTag;
 
 interface Neg<A> {
   tag: NegTag;
   a: A;
 }
 
-interface Terms<A> {
+export interface Terms<A> {
   [NegTag]: Neg<A>;
 }
 
-const neg = <A extends TermTags>(a: FixTerm<A>): FixTerm<NegTag | A> =>
+export const neg = <A extends TermTags>(a: FixTerm<A>): FixTerm<NegTag | A> =>
   fix({ tag: NegTag, a });
 
-const AddTag = "Add";
-type AddTag = typeof AddTag;
+export const AddTag = "Add";
+export type AddTag = typeof AddTag;
 
-interface Add<A> {
+export interface Add<A> {
   tag: AddTag;
   a: A;
   b: A;
 }
 
-interface Terms<A> {
+export interface Terms<A> {
   [AddTag]: Add<A>;
 }
 
-const add = <A extends TermTags, B extends TermTags>(
+export const add = <A extends TermTags, B extends TermTags>(
   a: FixTerm<A>,
   b: FixTerm<B>
 ): FixTerm<AddTag | A | B> => fix({ tag: AddTag, a, b });
 
-const MulTag = "Mul";
-type MulTag = typeof MulTag;
+export const MulTag = "Mul";
+export type MulTag = typeof MulTag;
 
 interface Mul<A> {
   tag: MulTag;
@@ -79,17 +82,17 @@ interface Mul<A> {
   b: A;
 }
 
-interface Terms<A> {
+export interface Terms<A> {
   [MulTag]: Mul<A>;
 }
 
-const mul = <A extends TermTags, B extends TermTags>(
+export const mul = <A extends TermTags, B extends TermTags>(
   a: FixTerm<A>,
   b: FixTerm<B>
 ): FixTerm<MulTag | A | B> => fix({ tag: MulTag, a, b });
 
-type BaseTags = ConstTag | NegTag | AddTag;
-type ExtTags = MulTag | BaseTags;
+export type BaseTags = ConstTag | NegTag | AddTag;
+export type ExtTags = MulTag | BaseTags;
 
 const seqBase: FixTerm<BaseTags> = add(cnst(1), neg(cnst(2)));
 const seqExt1: FixTerm<ExtTags> = mul(neg(cnst(1)), add(cnst(1), cnst(2)));
