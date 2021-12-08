@@ -1,8 +1,7 @@
 import * as O from "fp-ts/Option";
 import { Kind, URIS } from "fp-ts/HKT";
 import { Monad1 } from "fp-ts/Monad";
-import { flow, identity } from "fp-ts/function";
-import { Do } from "fp-ts-contrib/Do";
+import { flow } from "fp-ts/function";
 
 // -----------------------------------------------------------------------------
 // Common types
@@ -38,69 +37,46 @@ export const resolveNext =
     next(resolve)(a);
 
 /**
- * Postpone a call to a function with a monad
- */
-export const liftMUnaryAp: <F extends URIS, A, B>(
-  M: Monad1<F>
-) => (f: (a: A) => Kind<F, B>) => (a: A) => Kind<F, B> = (M) => (f) => (a) =>
-  M.chain(M.ap(M.of(f), M.of(a)), identity);
-
-/**
  * Transform a unary function into a function returning a lifted into a monad result
  *
  * Less strict version of `liftMUnaryS`
  */
-export const liftMUnarySW: <F extends URIS, A, B>(
+export const liftMUnaryS: <F extends URIS>(
   M: Monad1<F>
-) => (f: (a: A) => B) => (a: A) => Kind<F, B> = (M) => (f) => flow(f, M.of);
-
-/**
- * Transform a function into a function returning a lifted into a monad result
- */
-export const liftMUnaryS: <F extends URIS, A>(
-  M: Monad1<F>
-) => (f: (a: A) => A) => (a: A) => Kind<F, A> = liftMUnarySW;
+) => <A, B>(f: (a: A) => B) => (a: A) => Kind<F, B> = (M) => (f) =>
+  flow(f, M.of);
 
 /**
  * Lift a unary function into a monad
  *
  * Less strict version of `liftMUnary`
  */
-export const liftMUnaryW: <F extends URIS, A, B>(
+export const liftMUnary: <F extends URIS>(
   M: Monad1<F>
-) => (f: (a: A) => B) => (a: Kind<F, A>) => Kind<F, B> = (M) => (f) => (a) =>
-  Do(M)
-    .bindL("a", () => a)
-    .return(({ a }) => f(a));
-
-/**
- * Lift a unary function into a monad
- */
-export const liftMUnary: <F extends URIS, A>(
-  M: Monad1<F>
-) => (f: (a: A) => A) => (a: Kind<F, A>) => Kind<F, A> = liftMUnaryW;
+) => <A, B>(f: (a: A) => B) => (fa: Kind<F, A>) => Kind<F, B> =
+  (M) => (f) => (fa) =>
+    M.map(fa, f);
 
 /**
  * Lift a binary function into a monad
  *
  * Less strict version of `liftMBinary`
  */
-export const liftMBinaryW: <F extends URIS, A, B, C>(
+export const liftMBinary: <F extends URIS>(
   M: Monad1<F>
-) => (f: (a: A, b: B) => C) => (a: Kind<F, A>, b: Kind<F, B>) => Kind<F, C> =
-  (M) => (f) => (a, b) =>
-    Do(M)
-      .bindL("a", () => a)
-      .bindL("b", () => b)
-      .return(({ a, b }) => f(a, b));
+) => <A, B, C>(
+  f: (a: A, b: B) => C
+) => (fa: Kind<F, A>, fb: Kind<F, B>) => Kind<F, C> = (M) => (f) => (fa, fb) =>
+  M.chain(fa, (a) => M.map(fb, (b) => f(a, b)));
 
 /**
- * Lift a binary function into a monad
+ * Postpone evaluation of a function with specified arguments using a monad
  */
-export const liftMBinary: <F extends URIS, A>(
-  M: Monad1<F>
-) => (f: (a: A, b: A) => A) => (a: Kind<F, A>, b: Kind<F, A>) => Kind<F, A> =
-  liftMBinaryW;
+export const postponeM =
+  <F extends URIS>(M: Monad1<F>) =>
+  <A extends any[], B>(f: (...args: A) => Kind<F, B>) =>
+  (...args: A): Kind<F, B> =>
+    M.chain(M.of(undefined), () => f.apply(undefined, args));
 
 // -----------------------------------------------------------------------------
 //  Reference implementations

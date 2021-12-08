@@ -6,7 +6,7 @@ The purpose of this project is to explore how to implement extendable algebras w
 - [x] an approach with untyped internal commands -- [`002-untyped.ts`](/src/edsl/extendable-edsls/002-untyped.ts)
 - [x] and approach with type `FixTerm` allowing to represent a recursive type without explicitly specifying types for internal recursive fields (see `Fix` type reference below) -- [`003-fix.ts`](/src/edsl/extendable-edsls/003-fix.ts)
 - [x] interactions between tagged and tagless algebras -- [`004-interactions.ts`](/src/edsl/extendable-edsls/004-interactions.ts)
-- [ ] stack safe interpretation using interpreters that lift a tagless algebra into a monad
+- [x] stack safe interpretation using interpreters that lift a tagless algebra into a monad -- [`005-monad-lifting.ts`](/src/edsl/extendable-edsls/005-monad-lifting.ts)
 - [ ] multitype algebras -- define parameter types for the algebra, allowing operations to receive commands of different types and return any one of the defined types; these parameters are "free", meaning that actual types are substituted only inside an interpreter -- how to implement?
 
 ## References

@@ -1,18 +1,18 @@
 import {
+  unfix,
   cnst,
   neg,
   add,
   mul,
-  TermTags,
-  FixTerm,
+  ConstTag,
   NegTag,
   AddTag,
-  ConstTag,
-  TagToTerm,
+  MulTag,
   BaseTags,
   ExtTags,
-  MulTag,
-  unfix,
+  TermTags,
+  FixTerm,
+  TagToTerm,
 } from "./003-fix";
 
 // Tagless interpreters to construct a tagged representation of calculations
@@ -46,13 +46,13 @@ export const extInterpreterTagged: ExtInterpreterTagged = {
 
 // Tagless interpreters to be used inside tagged interpreters
 
-interface BaseInterpreter<A> {
+export interface BaseInterpreter<A> {
   cnst: (a: any) => A;
   neg: (a: A) => A;
   add: (a: A, b: A) => A;
 }
 
-interface ExtInterpreter<A> extends BaseInterpreter<A> {
+export interface ExtInterpreter<A> extends BaseInterpreter<A> {
   mul: (a: A, b: A) => A;
 }
 
@@ -80,7 +80,7 @@ export const extInterpreterStr: ExtInterpreter<string> = {
 
 // Tagged interpreter creators
 
-const evalBaseTF = <A>(T: BaseInterpreter<A>) => {
+const evalBaseFT = <A>(T: BaseInterpreter<A>) => {
   return <F extends TermTags>(f: (fa: FixTerm<F>) => A) =>
     (op: TagToTerm<BaseTags, FixTerm<F>>): A => {
       switch (op.tag) {
@@ -94,8 +94,8 @@ const evalBaseTF = <A>(T: BaseInterpreter<A>) => {
     };
 };
 
-const evalExtTF = <A>(T: ExtInterpreter<A>) => {
-  const d = evalBaseTF<A>(T);
+const evalExtFT = <A>(T: ExtInterpreter<A>) => {
+  const d = evalBaseFT<A>(T);
 
   return <F extends TermTags>(f: (fa: FixTerm<F>) => A) =>
     (op: TagToTerm<ExtTags, FixTerm<F>>): A => {
@@ -111,18 +111,18 @@ const evalExtTF = <A>(T: ExtInterpreter<A>) => {
 
 // Tagged interpreters using tagless ones
 
-const evalBaseNumF = evalBaseTF(baseInterpreterNum);
+const evalBaseNumF = evalBaseFT(baseInterpreterNum);
 export const evalBaseNum = (op: FixTerm<BaseTags>): number =>
   evalBaseNumF(evalBaseNum)(unfix(op));
 
-const evalBaseStrF = evalBaseTF(baseInterpreterStr);
+const evalBaseStrF = evalBaseFT(baseInterpreterStr);
 export const evalBaseStr = (op: FixTerm<BaseTags>): string =>
   evalBaseStrF(evalBaseStr)(unfix(op));
 
-const evalExtNumF = evalExtTF(extInterpreterNum);
+const evalExtNumF = evalExtFT(extInterpreterNum);
 export const evalExtNum = (op: FixTerm<ExtTags>): number =>
   evalExtNumF(evalExtNum)(unfix(op));
 
-const evalExtStrF = evalExtTF(extInterpreterStr);
+const evalExtStrF = evalExtFT(extInterpreterStr);
 export const evalExtStr = (op: FixTerm<ExtTags>): string =>
   evalExtStrF(evalExtStr)(unfix(op));

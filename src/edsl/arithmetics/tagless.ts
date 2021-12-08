@@ -127,12 +127,12 @@ export const interpreterNumThunk: Arithmetics<() => number> = {
  * Manually lifted interpreter
  */
 export const interpreterNumEval: Arithmetics<Eval<number>> = {
-  cnst: liftMUnaryS<Ev.URI, number>(Ev.Monad)(interpreterNum.cnst),
-  neg: liftMUnary<Ev.URI, number>(Ev.Monad)(interpreterNum.neg),
-  add: liftMBinary<Ev.URI, number>(Ev.Monad)(interpreterNum.add),
-  sub: liftMBinary<Ev.URI, number>(Ev.Monad)(interpreterNum.sub),
-  mul: liftMBinary<Ev.URI, number>(Ev.Monad)(interpreterNum.mul),
-  div: liftMBinary<Ev.URI, number>(Ev.Monad)(interpreterNum.div),
+  cnst: liftMUnaryS(Ev.Monad)(interpreterNum.cnst),
+  neg: liftMUnary(Ev.Monad)(interpreterNum.neg),
+  add: liftMBinary(Ev.Monad)(interpreterNum.add),
+  sub: liftMBinary(Ev.Monad)(interpreterNum.sub),
+  mul: liftMBinary(Ev.Monad)(interpreterNum.mul),
+  div: liftMBinary(Ev.Monad)(interpreterNum.div),
 };
 
 /**
@@ -141,12 +141,12 @@ export const interpreterNumEval: Arithmetics<Eval<number>> = {
 export const arithmeticsInterpreterLiftM =
   <F extends URIS, A>(M: Monad1<F>) =>
   (int: Arithmetics<A>): Arithmetics<Kind<F, A>> => ({
-    cnst: liftMUnaryS<F, A>(M)(int.cnst),
-    neg: liftMUnary<F, A>(M)(int.neg),
-    add: liftMBinary<F, A>(M)(int.add),
-    sub: liftMBinary<F, A>(M)(int.sub),
-    mul: liftMBinary<F, A>(M)(int.mul),
-    div: liftMBinary<F, A>(M)(int.div),
+    cnst: liftMUnaryS(M)(int.cnst),
+    neg: liftMUnary(M)(int.neg),
+    add: liftMBinary(M)(int.add),
+    sub: liftMBinary(M)(int.sub),
+    mul: liftMBinary(M)(int.mul),
+    div: liftMBinary(M)(int.div),
   });
 
 /**
@@ -186,7 +186,7 @@ export const arithmeticsInterpreterExtLiftM =
   <F extends URIS, A>(M: Monad1<F>) =>
   (int: ArithmeticsExt<A>): ArithmeticsExt<Kind<F, A>> => ({
     ...arithmeticsInterpreterLiftM<F, A>(M)(int),
-    pow: liftMBinary<F, A>(M)(int.pow),
+    pow: liftMBinary(M)(int.pow),
   });
 
 /**

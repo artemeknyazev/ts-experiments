@@ -1,12 +1,7 @@
 import { Kind, URIS } from "fp-ts/HKT";
 import { Monad1 } from "fp-ts/Monad";
 
-import {
-  liftMBinary,
-  liftMUnary,
-  liftMUnaryS,
-  liftMUnaryAp,
-} from "../../utils";
+import { liftMBinary, liftMUnary, liftMUnaryS, postponeM } from "../../utils";
 import * as Ev from "../../deferred-computations/Eval";
 import {
   ConstantTag,
@@ -126,42 +121,39 @@ export const evaluateNumTaglessF = (op: Op<number>): number =>
 export const evaluateStrTaglessF = (op: Op<string>): string =>
   evaluateStrTaglessF_(evaluateStrTaglessF)(op);
 
-// @ts-ignore
-const getEvaluateByTaglessFM_intermediate =
+export const getEvaluateByTaglessFM_intermediate =
   <F extends URIS, A>(M: Monad1<F>, T: Arithmetics<A>) =>
   (f: (op: Op<A>) => Kind<F, A>) =>
   (op: Op<A>): Kind<F, A> => {
     switch (op.tag) {
       case ConstantTag:
-        return liftMUnaryS<F, A>(M)(T.cnst)(op.value);
+        return liftMUnaryS(M)(T.cnst)(op.value);
       // Everything below is similar to using an interpreter `T` lifted to
       // a monad `M`, but we can't use `f(op.op0)` directly as a parameter,
       // because it causes infinite recursion
       // To mitigate this, recursion must be postponed by wrapping a call to `f`
-      // with argument `op.op0` to a monad `M` using `liftMUnaryAp`
+      // with argument `op.op0` to a monad `M` using `postponeM`
       case NegateTag:
-        return liftMUnary<F, A>(M)(T.neg)(
-          liftMUnaryAp<F, Op<A>, A>(M)(f)(op.op0)
-        );
+        return liftMUnary(M)(T.neg)(postponeM(M)(f)(op.op0));
       case AddTag:
-        return liftMBinary<F, A>(M)(T.add)(
-          liftMUnaryAp<F, Op<A>, A>(M)(f)(op.op0),
-          liftMUnaryAp<F, Op<A>, A>(M)(f)(op.op1)
+        return liftMBinary(M)(T.add)(
+          postponeM(M)(f)(op.op0),
+          postponeM(M)(f)(op.op1)
         );
       case SubTag:
-        return liftMBinary<F, A>(M)(T.sub)(
-          liftMUnaryAp<F, Op<A>, A>(M)(f)(op.op0),
-          liftMUnaryAp<F, Op<A>, A>(M)(f)(op.op1)
+        return liftMBinary(M)(T.sub)(
+          postponeM(M)(f)(op.op0),
+          postponeM(M)(f)(op.op1)
         );
       case MulTag:
-        return liftMBinary<F, A>(M)(T.mul)(
-          liftMUnaryAp<F, Op<A>, A>(M)(f)(op.op0),
-          liftMUnaryAp<F, Op<A>, A>(M)(f)(op.op1)
+        return liftMBinary(M)(T.mul)(
+          postponeM(M)(f)(op.op0),
+          postponeM(M)(f)(op.op1)
         );
       case DivTag:
-        return liftMBinary<F, A>(M)(T.div)(
-          liftMUnaryAp<F, Op<A>, A>(M)(f)(op.op0),
-          liftMUnaryAp<F, Op<A>, A>(M)(f)(op.op1)
+        return liftMBinary(M)(T.div)(
+          postponeM(M)(f)(op.op0),
+          postponeM(M)(f)(op.op1)
         );
       default:
         throw new Error(`Cannot evaluate op: ${JSON.stringify(op)}`);
@@ -182,7 +174,7 @@ export const getEvaluateByTaglessFM = <F extends URIS, A>(
   // Make all interpreter functions accept thunks to prevent immediate recursion
   const TF = arithmeticsInterpreterLiftM<F, A>(M)(T);
   // Lift calls to a unary function with a provided argument to a monad `M`
-  const liftFOpM = liftMUnaryAp<F, Op<A>, A>(M);
+  const p = postponeM(M);
 
   return (f: (op: Op<A>) => Kind<F, A>) =>
     (op: Op<A>): Kind<F, A> => {
@@ -190,15 +182,15 @@ export const getEvaluateByTaglessFM = <F extends URIS, A>(
         case ConstantTag:
           return TF.cnst(op.value);
         case NegateTag:
-          return TF.neg(liftFOpM(f)(op.op0));
+          return TF.neg(p(f)(op.op0));
         case AddTag:
-          return TF.add(liftFOpM(f)(op.op0), liftFOpM(f)(op.op1));
+          return TF.add(p(f)(op.op0), p(f)(op.op1));
         case SubTag:
-          return TF.sub(liftFOpM(f)(op.op0), liftFOpM(f)(op.op1));
+          return TF.sub(p(f)(op.op0), p(f)(op.op1));
         case MulTag:
-          return TF.mul(liftFOpM(f)(op.op0), liftFOpM(f)(op.op1));
+          return TF.mul(p(f)(op.op0), p(f)(op.op1));
         case DivTag:
-          return TF.div(liftFOpM(f)(op.op0), liftFOpM(f)(op.op1));
+          return TF.div(p(f)(op.op0), p(f)(op.op1));
         default:
           throw new Error(`Cannot evaluate op: ${JSON.stringify(op)}`);
       }
@@ -250,14 +242,14 @@ export const getEvaluateExtByTaglessExtFM = <F extends URIS, A>(
   T: ArithmeticsExt<A>
 ) => {
   const TF = arithmeticsInterpreterExtLiftM<F, A>(M)(T);
-  const liftFOpM = liftMUnaryAp<F, OpExt<A>, A>(M);
+  const p = postponeM(M);
   const def = getEvaluateByTaglessFM(M, T);
 
   return (f: (op: OpExt<A>) => Kind<F, A>) =>
     (op: OpExt<A>): Kind<F, A> => {
       switch (op.tag) {
         case PowTag:
-          return TF.pow(liftFOpM(f)(op.op0), liftFOpM(f)(op.op1));
+          return TF.pow(p(f)(op.op0), p(f)(op.op1));
         default:
           return def(f)(op);
       }
