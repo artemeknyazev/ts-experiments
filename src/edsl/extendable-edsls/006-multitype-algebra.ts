@@ -151,26 +151,54 @@ export const succ = <F extends TermTags>(
   a: FixTerm<F, NumTag>
 ): FixTerm<SuccTag | F, NumTag> => fix(new Succ(a));
 
+type BinOp<H extends TermTags> = TagToTerm<H, any> extends infer Term
+  ? Term extends {
+      ret?: TypeTags;
+      reta?: TypeTags;
+      retb?: TypeTags;
+    }
+    ? <F extends TermTags, G extends TermTags>(
+        a: FixTerm<F, Exclude<Term["reta"], undefined>>,
+        b: FixTerm<G, Exclude<Term["retb"], undefined>>
+      ) => FixTerm<H | F | G, Exclude<Term["ret"], undefined>>
+    : never
+  : never;
+
 export const AddTag = "Add";
 export type AddTag = typeof AddTag;
 
-export class Add<A> {
-  readonly tag: AddTag = AddTag;
-  readonly ret!: NumTag;
-  readonly reta!: NumTag;
-  readonly retb!: NumTag;
-  constructor(readonly a: A, readonly b: A) {}
+export interface Add<A> {
+  tag: AddTag;
+  ret?: NumTag;
+  reta?: NumTag;
+  retb?: NumTag;
+  a: A;
+  b: A;
 }
 
 export interface Terms<A> {
   [AddTag]: Add<A>;
 }
 
-export const add = <F extends TermTags, G extends TermTags>(
-  a: FixTerm<F, NumTag>,
-  b: FixTerm<G, NumTag>
-): FixTerm<AddTag | F | G, NumTag> =>
-  fix(new Add<FixTerm<F | G, NumTag>>(a, b));
+export const add: BinOp<AddTag> = (a, b) => fix({ tag: AddTag, a, b });
+
+export const RepeatTag = "Repeat";
+export type RepeatTag = typeof RepeatTag;
+
+export interface Repeat<A> {
+  tag: RepeatTag;
+  ret?: StrTag;
+  reta?: StrTag;
+  retb?: NumTag;
+  a: A;
+  b: A;
+}
+
+export interface Terms<A> {
+  [RepeatTag]: Repeat<A>;
+}
+
+export const repeat: BinOp<RepeatTag> = (a, b) => fix({ tag: RepeatTag, a, b });
 
 type BaseTags =
   | ConstNumTag
@@ -179,7 +207,7 @@ type BaseTags =
   | StrToNumTag
   | ConcatTag
   | SuccTag;
-type ExtTags = AddTag | BaseTags;
+type ExtTags = AddTag | RepeatTag | BaseTags;
 
 // Example term sequences
 
@@ -209,10 +237,8 @@ interface BaseInterpreterTagged {
 }
 
 interface ExtInterpreterTagged {
-  add: <F extends TermTags, G extends TermTags>(
-    a: FixTerm<F, NumTag>,
-    b: FixTerm<G, NumTag>
-  ) => FixTerm<AddTag | F | G, NumTag>;
+  add: BinOp<AddTag>;
+  repeat: BinOp<RepeatTag>;
 }
 
 export const baseInterpreterTagged: BaseInterpreterTagged = {
@@ -227,6 +253,7 @@ export const baseInterpreterTagged: BaseInterpreterTagged = {
 export const extInterpreterTagged: ExtInterpreterTagged = {
   ...baseInterpreterTagged,
   add,
+  repeat,
 };
 
 export interface BaseInterpreter<TNumber, TString> {
@@ -241,6 +268,7 @@ export interface BaseInterpreter<TNumber, TString> {
 export interface ExtInterpreter<TNumber, TString>
   extends BaseInterpreter<TNumber, TString> {
   add: (a: TNumber, b: TNumber) => TNumber;
+  repeat: (a: TString, b: TNumber) => TString;
 }
 
 export const baseInterpreterCalc: BaseInterpreter<number, string> = {
@@ -255,6 +283,11 @@ export const baseInterpreterCalc: BaseInterpreter<number, string> = {
 export const extInterpreterCalc: ExtInterpreter<number, string> = {
   ...baseInterpreterCalc,
   add: (a, b) => a + b,
+  repeat: (a, b) => {
+    let r = "";
+    for (; b > 0; b--) r += a;
+    return r;
+  },
 };
 
 export const baseInterpreterStr: BaseInterpreter<string, string> = {
@@ -269,6 +302,7 @@ export const baseInterpreterStr: BaseInterpreter<string, string> = {
 export const extInterpreterStr: ExtInterpreter<string, string> = {
   ...baseInterpreterStr,
   add: (a, b) => `Add(${a}, ${b})`,
+  repeat: (a, b) => `Repeat(${a}, ${b})`,
 };
 
 // This is not an ideal approach because of `any`. For any descriptor depending
@@ -313,6 +347,8 @@ export const evalExtFT = <TNumber, TString>(
       switch (op.tag) {
         case AddTag:
           return T.add(f(op.a), f(op.b));
+        case RepeatTag:
+          return T.repeat(f(op.a), f(op.b));
         default:
           return def(op);
       }
