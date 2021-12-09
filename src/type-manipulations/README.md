@@ -1,6 +1,12 @@
 # Type Manipulations
 
-## 1. `tuple` to `union` conversion
+## Subprojects
+
+- [Type Musings](/src/type-manipulations/type-musings) -- a small collection of type experiments
+
+## Notes
+
+### 1. `tuple` to `union` conversion
 
 From [here:](https://github.com/microsoft/TypeScript/issues/13298#issuecomment-423385929)
 
@@ -11,6 +17,6 @@ const as = ["A", "B", "C"];
 type A = typeof as[number]; // 'A' | 'B' | 'C
 ```
 
-## 2. `union` to `tuple` conversion
+### 2. `union` to `tuple` conversion
 
 [Here](https://stackoverflow.com/a/55128956) and [here.](https://github.com/microsoft/TypeScript/issues/13298#issuecomment-885980381) Not recommended.
