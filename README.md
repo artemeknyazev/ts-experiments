@@ -4,6 +4,7 @@ A small collection of Typescript experiments
 
 ## Contents
 
+- [Workflows/Sagas](/src/workflows) -- musings on a workflow framework for microservices influenced by talk ["Data Consistency in Microservice Using Sagas"](https://www.youtube.com/watch?v=txlSrGVCK18)
 - [Deferred Computations](/src/deferred-computations) -- a number of utilities for deferring computations, including
   - `Pr`, a `Promise`-like data type for sync/async computations conforming to `Monad` laws
   - Cat's-like `Eval` data structure for sync computations
