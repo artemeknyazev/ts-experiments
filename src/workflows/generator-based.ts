@@ -8,10 +8,14 @@ export class ReadOnly<T> {
 }
 
 export class Mutating<T> {
-  constructor(public tx: Tx<T>, public cx?: Cx) {}
+  constructor(public tx: Tx<T>, public cx: Cx) {}
 }
 
-type Step<T> = ReadOnly<T> | Mutating<T>;
+export class Pivot<T> {
+  constructor(public tx: Tx<T>) {}
+}
+
+type Step<T> = ReadOnly<T> | Mutating<T> | Pivot<T>;
 
 export type Workflow = Generator<Step<any>, void, any>;
 
@@ -19,82 +23,76 @@ export type Workflow = Generator<Step<any>, void, any>;
 
 export const readOnly = <T>(tx: Tx<T>): ReadOnly<T> => new ReadOnly<T>(tx);
 
-export const mutating = <T>(tx: Tx<T>, cx?: Cx): Mutating<T> =>
+export const mutating = <T>(tx: Tx<T>, cx: Cx): Mutating<T> =>
   new Mutating<T>(tx, cx);
+
+export const pivot = <T>(tx: Tx<T>): Pivot<T> => new Pivot<T>(tx);
 
 /* Workflow executor */
 
 export async function run(workflow: Workflow): Promise<void> {
   // a list of compensating functions
   let cxs: Cx[] = [];
-  // is the whole workflow compensatable
-  let isCompensatable: boolean = true;
+  // a number of pivot operations happened during the workflow
+  let nPivots: number = 0;
   // should the workflow be unrolled
-  let isUnroll: boolean = false;
   let unrollReason: unknown;
 
   let next: IteratorResult<Step<unknown>>;
-  // acquire first value
+  let res: unknown;
+
   try {
     next = workflow.next();
   } catch (e) {
-    // received a synchronous error, unroll
-    isUnroll = true;
     unrollReason = e;
   }
 
-  // iterate each generator step
-  while (!isUnroll && !next!.done) {
+  while (!unrollReason && !next!.done) {
     const flow = next!.value;
-    // error out if an unknown value is yielded
-    if (!(flow instanceof ReadOnly || flow instanceof Mutating)) {
-      isUnroll = true;
-      unrollReason = new Error("Unknown workflow step type");
-      break;
-    }
 
     try {
-      // try executing
-      const res = await flow.tx();
-      try {
-        // inject result into workflow
-        next = workflow.next(res);
-      } catch (e) {
-        // received a synchronous error, unroll
-        isUnroll = true;
-        unrollReason = e;
-      }
+      // execute async operation
+      res = await flow.tx();
     } catch (e1) {
-      // external call/async error
+      // async exception caught
       try {
-        // try throwing it inside workflow to potentially handle it there
+        // try rethrowing into workflow -- this acquires a next workflow step;
+        // compensating operation is not added, because the atomic forward
+        // operation didn't succeed, so nothing to compensate
         next = workflow.throw(e1);
+        continue;
       } catch (e2) {
-        // external call error is not handled inside workflow, unroll
-        isUnroll = true;
+        // rethrowing didn't succeed, unroll
         unrollReason = e2;
         break;
       }
     }
 
-    // execution succeeded
+    // async operation succeeds, register its aftereffects
     if (flow instanceof Mutating) {
-      if (flow.cx && isCompensatable) {
-        // this is a mutating compensatable step
-        // all previous steps were compensatable
-        // add compensating function to a list
-        cxs.push(flow.cx);
-      } else {
-        // this is a mutating not compensatable step
-        // consider the whole workflow not compensatable
-        isCompensatable = false;
-        cxs = [];
-      }
+      cxs.push(flow.cx);
+    } else if (flow instanceof Pivot) {
+      nPivots++;
+    }
+
+    // try acquiring next workflow step
+    try {
+      next = workflow.next(res);
+      continue;
+    } catch (e) {
+      // caught a sync exception that is not caught inside workflow, unroll
+      unrollReason = e;
+      break;
     }
   }
 
   // unroll if error happened
-  if (isUnroll) {
+  if (unrollReason) {
+    // workflow is not revertible if there were completed pivot operations
+    if (nPivots) {
+      throw unrollReason;
+    }
+
     for (const cx of cxs.reverse()) {
       // compensating function error means the state is unknown
       // this can only be handled by a caller, so no try-catch

@@ -1,21 +1,35 @@
 # Workflows/Sagas
 
+## Contents
+
+- [Introduction](#introduction)
+- [Key Terms&Ideas](#key-termsideas)
+- [Implementations](#implementations)
+  - [Generator-based](#generator-based)
+  - [Async-based](#async-based)
+  - [Async-based with `AsyncLocalStorage`](#async-based-with-asynclocalstorage)
+  - [State machine-based](#state-machine-based)
+
 ## Introduction
 
 **NOTE:** ideas for this experiment are acquired from a talk ["Data Consistency in Microservice Using Sagas"](https://www.youtube.com/watch?v=txlSrGVCK18)
 
 A **workflow** is a list of potentially revertible steps that may be reverted as a whole. **Workflows** (or **sagas**) are commonly used in microservice architecture to implement a semi-transactional behavior when calling multiple microservices.
 
-### Key terms&Ideas
+### Key Terms&Ideas
 
 - an **orchestrator** microservice sequentially calls multiple **worker** microservices
 - each call is abstracted as a workflow **step**
-- revertible steps are called **compensatable,** e.g. write a new value by key to a key-value storage is compensatable by rewriting it with a previous value, or removing that value
+- each step is a transaction having ACID properties; external calls being atomic ensures us that they either succeed or fail with no intermediate semi-success state
+- this allows us to define a "reverse" or a **compensation** for each step, i.e. a call (may be not transactional) that reverts changes applied on this step
+- revertible steps are called **compensatable** or **mutating,** e.g. write a new value by key to a key-value storage is compensatable by rewriting it with a previous value, or removing that value
 - not revertible steps are called **not compensatable** or **pivot,** e.g. sending a message to a message broker
-- if a step fails, all previous steps a reverted, i.e. **compensated**
-- a not compensatable step makes a part of a workflow after it not compensatable:
-  - error before a not compensatable step reverts a workflow
-  - error after a not compensatable step doesn't revert a workflow
+- if a step fails, all previous steps are reverted, i.e. **compensated**
+- a pivot step makes a part of a workflow after it not compensatable:
+  - error before a pivot step reverts a workflow
+  - error during a pivot step still reverts a workflow, because all actions are assumed to be transactional
+  - error after a pivot step doesn't revert a workflow
+- all ideas above produce ACD (atomicity, consistency, durability), i.e. ACID without isolation, or BASE (basically available, soft state, eventually consistent) as described in [paper](https://queue.acm.org/detail.cfm?id=1394128)
 
 ## Implementations
 
@@ -27,7 +41,7 @@ A **workflow** is a list of potentially revertible steps that may be reverted as
     - `mutating(<tx>)` -- describes a not compensatable mutating operation `tx`
     - `mutating(<tx>, <cx>)` -- describes a mutating operation `tx` compensatable by a `cx` call
 - [`generator-based.test.ts`](./generator-based.test.ts) -- tests for the reference implementation
-- [`generator-based.example.test.ts`](./generator-based.example.test.ts) -- an example workflow with both compensatable and not steps
+- [`generator-based.example.test.ts`](./generator-based.example.test.ts) -- an example workflow with both compensatable and pivot steps
 
 #### Pros&Cons
 
@@ -43,16 +57,11 @@ A **workflow** is a list of potentially revertible steps that may be reverted as
 
 ### Async-based
 
-- [`async-based.ts`](./async-based.ts) -- a reference implementation
-  - a read-only operation is just an async operation, no wrappers needed
-  - `mutating` abstracts a mutating operation
-    - `mutating(<ctx>, <tx>)` -- not compensatable/pivot one
-    - `mutating(<ctx>, <tx>, <cx>)` -- a compensatable one
-    - it uses a `Context` object to capture the order of compensating operations an existence of pivot ones
-  - `workflow` creates a context and passes it to a workflow factory function, returning a workflow executor that handles potential compensation
-- [`async-based.test.ts`](./async-based.test.ts) -- tests for the reference implementation, partially same as in [`generator-based.test.ts;`](./generator-based.test.ts)
-  - **todo:** add more tests
-- [`async-based.example.test.ts`](./async-based.example.test.ts) -- **todo:** an example workflow
+- a read-only operation is just an async operation, no wrappers needed
+- `pivot(<ctx>, <tx>)` abstracts a not compensatable/pivot operation
+- `mutating(<ctx>, <tx>, <cx>)` abstracts a compensatable mutating operation
+- both use a `Context` object to capture the order of compensating operations an existence of pivot ones
+- `workflow` creates a context and passes it to a workflow factory function, returning a workflow executor that handles potential compensation
 
 #### Pros&Cons
 
@@ -61,16 +70,34 @@ A **workflow** is a list of potentially revertible steps that may be reverted as
 - Good, because preserves type information about return types
 - Bad, because requires manual context passing (`ctx` in a workflow factory function)
 
-### `async_hooks`-based
+### Async-based with `AsyncLocalStorage`
 
-**TBD**
+- [`async-based.ts`](./async-based.ts) -- a reference implementation
+  - a read-only operation is just an async operation, no wrappers needed
+  - `pivot(<tx>)` abstracts a not compensatable/pivot operation
+  - `mutating(<tx>, <cx>)` abstracts a compensatable mutating operation
+  - `workflow` executes a workflow factory function, returning a workflow executor that handles potential compensation
+  - a workflow context is bound internally using an `AsyncLocalStorage`
+- [`async-based.test.ts`](./async-based.test.ts) -- tests for the reference implementation
+- [`async-based.example.test.ts`](./async-based.example.test.ts) -- an example workflow with both compensatable and pivot steps
 
-#### Pros&Cons (potential)
+#### Pros&Cons
 
 - Same as with [async-based](#async-based)
-- Good, because _maybe_ eliminates the need of manual context-passing
-  - **todo:** check!
-- Bad, because there _may be_ problems with async code coming from external libraries
-  - need to check documentation
-  - will callbacks initiated by a non-JS code have the same async context?
-  - **todo:** check!
+- Good, because eliminates the need of manual context-passing
+- Bad, because there [_may be_ problems with context loss in async code](https://nodejs.org/api/async_context.html#troubleshooting-context-loss)
+
+### State machine-based
+
+- Similar to [`AWS Step Functions`,](https://aws.amazon.com/step-functions/) maybe implemented with [`xstate`](https://xstate.js.org/docs/)
+- A workflow is defined as a state machine
+  - each node corresponds to an external async operation
+  - upon completion, a node may choose an edge to go to
+  - async operations in nodes share a global state
+  - global state together with a current node's id is serializable
+- TBD
+
+#### Pros&Cons
+
+- Good, because unlike other implementations execution can be started at any point, meaning it can be abstracted as something like `AWS Step Functions`, executing only after external result is acquired
+- TBD

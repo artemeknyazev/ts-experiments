@@ -1,32 +1,22 @@
-import {
-  mutating,
-  readOnly,
-  pivot,
-  run,
-  Mutating,
-  ReadOnly,
-  Workflow,
-  Pivot,
-} from "./generator-based";
 import { externalAPI, ExternalAPI } from "./externalApi.mock";
+import { mutating, pivot, workflow } from "./async-based";
 
 /* Flow-wrapped API */
 
 export interface FlowAPI {
   /* Read-only */
-  readString(key: string): ReadOnly<string | undefined>;
+  readString(key: string): Promise<string | undefined>;
 
   /* Mutating */
-  createString(key: string, value: string): Mutating<void>;
-  writeString(key: string, value: string, prevValue: string): Mutating<void>;
-  deleteString(key: string, prevValue: string): Mutating<void>;
-  sendMessage(data: unknown): Pivot<void>;
+  createString(key: string, value: string): Promise<void>;
+  writeString(key: string, value: string, prevValue: string): Promise<void>;
+  deleteString(key: string, prevValue: string): Promise<void>;
+  sendMessage(data: unknown): Promise<void>;
 }
 
 export const flowAPI = (api: ExternalAPI): FlowAPI => {
   /* Read-only */
-  const readString: FlowAPI["readString"] = (key) =>
-    readOnly(() => api.readString(key));
+  const readString: FlowAPI["readString"] = api.readString;
 
   /* Mutating */
   const createString: FlowAPI["createString"] = (key, value) =>
@@ -62,24 +52,25 @@ export const flowAPI = (api: ExternalAPI): FlowAPI => {
 
 /* Example flows */
 
-export const combineValuesWorkflow = (api: FlowAPI) =>
-  function* (keyLeft: string, keyRight: string, keyNew: string): Workflow {
-    const valueLeft: string = yield api.readString(keyLeft);
+export const combineValuesWorkflow =
+  (api: FlowAPI) =>
+  async (keyLeft: string, keyRight: string, keyNew: string): Promise<void> => {
+    const valueLeft: string | undefined = await api.readString(keyLeft);
     if (!valueLeft) {
-      yield api.sendMessage({ payload: "Not found" });
+      await api.sendMessage({ payload: "Not found" });
       return;
     }
-    const valueRight: string = yield api.readString(keyRight);
+    const valueRight: string | undefined = await api.readString(keyRight);
     if (!valueRight) {
-      yield api.sendMessage({ payload: "Not found" });
+      await api.sendMessage({ payload: "Not found" });
       return;
     }
 
     const valueNew: string = valueLeft + valueRight;
-    yield api.deleteString(keyLeft, valueLeft);
-    yield api.deleteString(keyRight, valueRight);
-    yield api.createString(keyNew, valueNew);
-    yield api.sendMessage({ payload: "Created" });
+    await api.deleteString(keyLeft, valueLeft);
+    await api.deleteString(keyRight, valueRight);
+    await api.createString(keyNew, valueNew);
+    await api.sendMessage({ payload: "Created" });
   };
 
 /* Tests */
@@ -94,7 +85,9 @@ it("Sends a 'Not found' message when left key is not found", async () => {
   expect.assertions(4);
   const eApi = externalAPI();
   const fApi = flowAPI(eApi);
-  await run(combineValuesWorkflow(fApi)(keyLeft, keyRight, keyNew));
+  await workflow(() =>
+    combineValuesWorkflow(fApi)(keyLeft, keyRight, keyNew)
+  )();
   expect(await eApi.readString(keyLeft)).toBe(undefined);
   expect(await eApi.readString(keyRight)).toBe(undefined);
   expect(await eApi.readString(keyNew)).toBe(undefined);
@@ -106,7 +99,9 @@ it("Sends a 'Not found' message when right key is not found", async () => {
   const eApi = externalAPI();
   await eApi.writeString(keyLeft, valueLeft);
   const fApi = flowAPI(eApi);
-  await run(combineValuesWorkflow(fApi)(keyLeft, keyRight, keyNew));
+  await workflow(() =>
+    combineValuesWorkflow(fApi)(keyLeft, keyRight, keyNew)
+  )();
   expect(await eApi.readString(keyLeft)).toBe(valueLeft);
   expect(await eApi.readString(keyRight)).toBe(undefined);
   expect(await eApi.readString(keyNew)).toBe(undefined);
@@ -119,7 +114,9 @@ it("Computes when both keys are present", async () => {
   await eApi.writeString(keyLeft, valueLeft);
   await eApi.writeString(keyRight, valueRight);
   const fApi = flowAPI(eApi);
-  await run(combineValuesWorkflow(fApi)(keyLeft, keyRight, keyNew));
+  await workflow(() =>
+    combineValuesWorkflow(fApi)(keyLeft, keyRight, keyNew)
+  )();
   expect(await eApi.readString(keyLeft)).toBe(undefined);
   expect(await eApi.readString(keyRight)).toBe(undefined);
   expect(await eApi.readString(keyNew)).toBe(valueLeft + valueRight);
@@ -132,12 +129,11 @@ it("Does not revert when error happens after the workflow", async () => {
   await eApi.writeString(keyLeft, valueLeft);
   await eApi.writeString(keyRight, valueRight);
   const fApi = flowAPI(eApi);
-  const workflow = function* () {
-    yield* combineValuesWorkflow(fApi)(keyLeft, keyRight, keyNew);
-    yield readOnly(() => Promise.reject(new Error("test")));
-  };
   try {
-    await run(workflow());
+    await workflow(async () => {
+      await combineValuesWorkflow(fApi)(keyLeft, keyRight, keyNew);
+      await Promise.reject(new Error("test"));
+    })();
   } catch (e) {
     expect(e).toEqual(new Error("test"));
   }
@@ -157,7 +153,9 @@ it("Reverts when sendMessage errors out", async () => {
   await eApi.writeString(keyRight, valueRight);
   const fApi = flowAPI(eApi);
   try {
-    await run(combineValuesWorkflow(fApi)(keyLeft, keyRight, keyNew));
+    await workflow(() =>
+      combineValuesWorkflow(fApi)(keyLeft, keyRight, keyNew)
+    )();
   } catch (e) {
     expect(e).toEqual(new Error("test"));
   }
